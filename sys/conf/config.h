@@ -1,0 +1,3 @@
+#define SERIAL_CONSOLE 1
+#define SERIAL_PORTS 2
+#define MAX_MEM (1024 * 1024 * 128)

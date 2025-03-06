@@ -1,0 +1,45 @@
+.TH MAN 1
+.SH NAME
+man \- print manual page(s)
+.SH SYNOPSIS
+.B man
+[-a] [section] page...
+.SH DESCRIPTION
+The
+.I man
+command prints the specified manual
+.I page
+in the specified
+.IR section .
+If no section is specified, man displays the manual page from the first section it finds
+the requested manual page.
+.SS Options:
+.TP 
+.B \-a
+Print the manual page from all sections that contains a page matching the topic
+.TP
+.B \-h
+Print the usage help text
+.SS Examples:
+Displays the manual page for man
+.IP
+man man
+.PP
+Displays the manual page for topic1 in section 1, then display the manual page for topic2
+.IP
+man 1 topic1 topic2
+.PP
+Displays the manual page for topic from each section that has a manual page for the topic 
+.IP
+man -a topic
+.SS "Exit status:"
+.TP
+0
+on success
+.TP
+1
+on error
+.SH FILES
+/usr/man/man?/\(**
+.SH "SEE ALSO"
+roff(1)
