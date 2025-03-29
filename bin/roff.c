@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -203,7 +204,7 @@ int main(int argc, char *argv[]) {
     fp = fopen(argv[1], "r");
     if (!fp) {
       perror("Error opening file");
-      return 1;
+      return EXIT_FAILURE;
     }
   }
   process_file(fp);
