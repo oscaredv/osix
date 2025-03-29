@@ -102,33 +102,37 @@ int ls(const char *name) {
   return 0;
 }
 
+void usage() {
+  fprintf(stderr, "usage: ls [-lai] [DIR...]\n");
+  exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char **argv) {
   show_hidden = 0; // TODO: Default to 1 if uid == 0
   long_format = 0;
 
   int arg = 1;
-  int o = 1;
   while (arg < argc && argv[arg][0] == '-') {
-    switch (argv[arg][o]) {
-    case 'a':
-      show_hidden = 1;
-      break;
-    case 'l':
-      long_format = 1;
-      break;
-    case 'i':
-      show_inodes = 1;
-      break;
-    default:
-      fprintf(stderr, "%s: Unknown option -%c\n", argv[0], argv[arg][o]);
-      exit(EXIT_FAILURE);
+    for (int o = 1; argv[arg][o] != '\0'; o++) {
+      switch (argv[arg][o]) {
+      case 'a':
+        show_hidden = 1;
+        break;
+      case 'l':
+        long_format = 1;
+        break;
+      case 'i':
+        show_inodes = 1;
+        break;
+      case 'h':
+        usage();
+        break;
+      default:
+        fprintf(stderr, "%s: Unknown option -%c\n", argv[0], argv[arg][o]);
+        exit(EXIT_FAILURE);
+      }
     }
-
-    ++o;
-    if (argv[arg][o] == 0) {
-      o = 1;
-      ++arg;
-    }
+    ++arg;
   }
 
   int ret = EXIT_SUCCESS;
