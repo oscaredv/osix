@@ -1,0 +1,28 @@
+.TH LS 1
+.SH NAME
+ls \- list contents of directory
+.SH SYNOPSIS
+.B ls
+[-lai] [DIRECTORY...]
+.SH DESCRIPTION
+The
+.I ls
+command lists files in the current directory, or in the list of directories given as argument
+.SS Options:
+.TP
+.B \-a
+List all, also hidden, files and directories. File or directory names starting with . are considered hidden.
+.TP
+.B \-l
+Long option, list detailed information like mode, number of links, owner and group, files size, date and time.
+.TP
+.B \-i
+List inode numbers for directory entries.
+.TP
+.B \-h
+Print the usage help text
+.SH FILES
+/etc/passwd,
+/etc/group
+.SH BUGS
+No sorting. Usage text not implemented. Should implement -R, -d -1

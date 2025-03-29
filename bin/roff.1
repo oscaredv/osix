@@ -1,0 +1,49 @@
+.TH ROFF 1
+.SH NAME
+roff \- runoff formatting tool
+.SH SYNOPSIS
+.B roff
+file
+.SH DESCRIPTION
+The
+.I roff
+command reads a runoff file and formats it for printing on terminal.
+It is used by the man command to format man pages.
+Macros are used to control the formatting, but only a limited set of the runoff
+macros are supported:
+.SS Supported macros:
+.TP
+TH
+Top header \- expects name and section number. Example: ".TH ROFF 1"
+.TP
+SH
+Section header \- expects section name like SYNOPSIS, DESCRIPTION, EXAMPLES, FILES, SEE ALSO & BUGS.
+Example: ".SH DESCRIPTION"
+.TP
+SS
+Sub-section - expects sub-section name. Example: ".SS Options:"
+.TP
+TP
+Tagged paragraph, expects tag on next line, then paragraph text on the line after that
+.TP
+PP
+Paragraph - start a new paragraph
+.TP
+IP
+Indented paragraph
+.TP
+I
+Display text in italic
+.TP
+IR
+Alternate every other word between italic and plain text
+.TP
+B
+Display text in bold
+.SH "EXIT STATUS"
+roff exits with status 1 if the given file was not found.
+.SH "SEE ALSO"
+man(1)
+.SH Bugs
+Doesn't break words. Right margin not even. Only limited set of macros are supported.
+No exit code for formatting errors or no file or argument given.
