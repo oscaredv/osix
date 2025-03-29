@@ -80,11 +80,16 @@ struct tm *gmtime(const time_t *timep) {
     month++;
   }
   result.tm_mon = month;
-  result.tm_mday = t + 1;
+  result.tm_mday = t;
 
   result.tm_isdst = 0;
-  result.tm_wday = (t + 6) % 7;
-  result.tm_yday = t;
+  result.tm_wday = (t + 5) % 7;
+  result.tm_yday = t - 1;
+  for (int m = 0; m < month; m++) {
+    result.tm_yday += days_in_month[m];
+  }
+  if (month >= 2 && is_leap_year(year))
+    result.tm_yday++;
 
   return &result;
 }
