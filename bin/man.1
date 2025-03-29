@@ -20,7 +20,7 @@ Print the manual page from all sections that contains a page matching the topic
 .TP
 .B \-h
 Print the usage help text
-.SS Examples:
+.SH EXAMPLES
 Displays the manual page for man
 .IP
 man man
@@ -32,14 +32,17 @@ man 1 topic1 topic2
 Displays the manual page for topic from each section that has a manual page for the topic 
 .IP
 man -a topic
-.SS "Exit status:"
+.SH "EXIT STATUS"
 .TP
 0
-on success
+Success
 .TP
 1
-on error
+On any error
 .SH FILES
 /usr/man/man?/\(**
 .SH "SEE ALSO"
 roff(1)
+.SH BUGS
+Should use a pager. Doesn't support typesetting with troff. Should have been a
+shell script. Searching manpages not supported.
