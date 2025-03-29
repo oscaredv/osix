@@ -1,0 +1,19 @@
+.TH DF 1
+.SH NAME
+df \- print disk free information
+.SH SYNOPSIS
+.B df
+.SH DESCRIPTION
+The
+.I df
+command prints the name of the root device, the size of the mounted filesystem, the amount of space used,
+the available space, and the usage in percent.
+.SH "EXIT STATUS"
+.TP
+0
+Success
+.TP
+1
+On any error
+.SH BUGS
+Should accept -h and -k for human readable, and kilobytes, and default to blocks.
