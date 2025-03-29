@@ -1,0 +1,33 @@
+.TH PASSWD 5
+.SH NAME
+passwd - password file
+.SH DESCRIPTION
+.I /etc/passwd
+is the user database of the system. Details about the user account is stored on
+a line in the file, each field separated by a colon.
+.SS Fields:
+.TP 
+.B login
+The user login name
+.TP
+.B password
+The encrypted password of the user
+.TP
+.B uid
+Numerical user id
+.TP
+.B gid
+Numerical user's group id
+.TP
+.B name
+Users full name
+.TP
+.B home
+Full path of users home directory
+.TP
+.B shell
+Users shell (optional)
+.SH FILES
+/etc/passwd
+.SH "SEE ALSO"
+group(5)

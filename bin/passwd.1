@@ -1,0 +1,18 @@
+.TH PASSWD 1
+.SH NAME
+passwd \- Sets users password
+.SH SYNOPSIS
+.B passwd
+.SH DESCRIPTION
+The
+.I passwd
+command prompts for a password and prints an encrypted hash to the terminal
+.SH FILES
+/etc/passwd
+.SH "SEE ALSO"
+passwd(5)
+.SH BUGS
+The encrypted password should be written to /etc/passwd, not just printed to
+the terminal. An optional user name should be accepted as argument, and the
+password of that user should be changed. passwd should prompt for the password
+twice, and only accept it if they match.
