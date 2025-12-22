@@ -300,6 +300,7 @@ unsigned long proc_break(struct proc *p, unsigned long brk) {
       pmap_zero_page(paddr);
       pmap_enter(&p->pmap, vaddr, paddr, VM_PROT_ALL);
     }
+    pmap_flush();
   } else if (brk < p->brk) {
     // Decrease program size
     for (unsigned long vaddr = brk; vaddr < p->brk; vaddr += PAGE_SIZE) {
@@ -307,6 +308,7 @@ unsigned long proc_break(struct proc *p, unsigned long brk) {
       pmap_remove(&p->pmap, vaddr, vaddr + PAGE_SIZE);
       vmm_free_page((void *)paddr);
     }
+    pmap_flush();
   }
 
   p->brk = brk;

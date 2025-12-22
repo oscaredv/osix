@@ -25,6 +25,8 @@ void pmap_copy_page(unsigned long src_paddr, unsigned long dst_paddr);
 
 void pmap_activate(const struct proc *p);
 
+void pmap_flush(void);
+
 void pmap_init(void);
 
 #endif

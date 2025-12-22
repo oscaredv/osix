@@ -19,3 +19,9 @@ tss_load:
 	mov $0x28 | 3, %ax
 	ltr %ax
 	ret
+
+.global pmap_flush
+pmap_flush:
+	mov %cr3, %eax
+	mov %eax, %cr3
+	ret

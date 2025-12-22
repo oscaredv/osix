@@ -54,6 +54,8 @@ int sys_exec(const char *pathname, const char *argv[], const char *envp[]) {
 
   proc_init_user_context(cur_proc, user_esp);
 
+  pmap_flush();
+
   yield(); // Will not return
   return 0;
 }
