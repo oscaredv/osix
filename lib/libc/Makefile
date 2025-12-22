@@ -17,7 +17,7 @@ all: $(LIBDIR)/libc.a
 clean:
 	$(RM) $(LIBDIR)/libc.a $(OBJS)
 
-$(LIBDIR)/libc.a: $(OBJS)
+$(LIBDIR)/libc.a: $(OBJS) ../crt0.S
 	@mkdir -p $(LIBDIR)
 	ar rcs $(LIBDIR)/libc.a $(OBJS)
 
