@@ -31,6 +31,9 @@ umount:
 	sudo umount /mnt
 	sudo qemu-nbd --disconnect /dev/nbd0
 
+disconnect:
+	sudo qemu-nbd --disconnect /dev/nbd0
+
 QEMUFLAGS+=--no-reboot
 #QEMUFLAGS+=-d int
 QEMUFLAGS+=-serial mon:stdio
