@@ -11,6 +11,10 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define PROMPT_SIZE 16
+
+char prompt[PROMPT_SIZE] = "$ ";
+
 int internal_cmd(char *argv[]) {
   if (!strcmp(argv[0], "exit")) {
     exit(EXIT_SUCCESS);
@@ -217,9 +221,13 @@ int main(int argc, char *argv[]) {
 
   signal(SIGINT, sighandler);
 
+  if (getuid() == 0) {
+    strncpy(prompt, "# ", PROMPT_SIZE);
+  }
+
   char cmdline[1024];
   while (1) {
-    printf("# ");
+    printf("%s", prompt);
     fflush(stdout);
     int len = read(STDIN_FILENO, cmdline, sizeof(cmdline));
 
