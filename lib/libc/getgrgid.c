@@ -3,12 +3,13 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-static char *group_file = NULL;
-static size_t group_count = 0;
-static struct group *groups = NULL;
+static char *grp_cache_data = NULL;
+static size_t grp_cache_size = 0;
+static struct group *grp_cache = NULL;
 
 int parse_group() {
   int fd = open("/etc/group", O_RDONLY);
@@ -18,40 +19,40 @@ int parse_group() {
     return -1;
   }
 
-  group_file = malloc(st.st_size + 1);
-  if (group_file == NULL) {
+  grp_cache_data = malloc(st.st_size + 1);
+  if (grp_cache_data == NULL) {
     // TODO: ENOMEM
     close(fd);
     return -1;
   }
 
   // Load password file
-  if (read(fd, group_file, st.st_size) != st.st_size) {
+  if (read(fd, grp_cache_data, st.st_size) != st.st_size) {
     close(fd);
     return -1;
   }
-  group_file[st.st_size] = 0;
+  grp_cache_data[st.st_size] = 0;
   close(fd);
 
   // Count entries
-  char *p = group_file;
-  group_count = 0;
+  char *p = grp_cache_data;
+  grp_cache_size = 0;
   while (*p != 0) {
     if (*p++ == '\n') // Count newlines
-      ++group_count;
+      ++grp_cache_size;
     else if (*p == 0) // Count entry even if newline is missing
-      ++group_count;
+      ++grp_cache_size;
   }
 
-  groups = malloc(group_count * sizeof(struct group));
-  if (groups == NULL) {
-    free(group_file);
-    group_file = NULL;
+  grp_cache = malloc(grp_cache_size * sizeof(struct group));
+  if (grp_cache == NULL) {
+    free(grp_cache_data);
+    grp_cache_data = NULL;
     return -1; // TODO: ENOMEM
   }
 
-  p = group_file;
-  for (size_t e = 0; e < group_count; e++) {
+  p = grp_cache_data;
+  for (size_t e = 0; e < grp_cache_size; e++) {
     char *fields[] = {NULL, NULL, NULL, NULL};
     for (int f = 0; f < 4; f++) {
       fields[f] = p;
@@ -65,24 +66,65 @@ int parse_group() {
       }
     }
 
-    groups[e].gr_name = fields[0];
-    groups[e].gr_passwd = fields[1];
-    groups[e].gr_gid = atoi(fields[2]);
-    groups[e].gr_mem = NULL;
+    grp_cache[e].gr_name = fields[0];
+    grp_cache[e].gr_passwd = fields[1];
+    grp_cache[e].gr_gid = atoi(fields[2]);
+    for (int g = 0; g < NGROUPMEMB; g++) {
+      grp_cache[e].gr_mem[g] = NULL;
+    }
+
+    char *p = fields[3];
+    int g = 0;
+    while (*p != 0 && g < NGROUPMEMB) {
+      grp_cache[e].gr_mem[g++] = p;
+      while (*p != 0 && *p != ',')
+        ++p;
+
+      if (*p == ',')
+        *p++ = 0;
+    }
   }
 
   return 0;
 }
 
 struct group *getgrgid(short gid) {
-  if (groups == NULL && parse_group() == -1)
+  if (grp_cache == NULL && parse_group() == -1)
     return NULL;
 
-  for (size_t i = 0; i < group_count; i++) {
-    if (groups[i].gr_gid == gid) {
-      return &groups[i];
+  for (size_t i = 0; i < grp_cache_size; i++) {
+    if (grp_cache[i].gr_gid == gid) {
+      return &grp_cache[i];
     }
   }
 
   return NULL;
+}
+
+int initgroups(const char *name, gid_t basegid) {
+  gid_t groups[NGROUPS];
+  int ngroups = 0;
+  if (getgrouplist(name, basegid, groups, &ngroups)) {
+    return -1;
+  }
+
+  return setgroups(ngroups, groups);
+}
+
+int getgrouplist(const char *name, gid_t basegid, gid_t *groups, int *ngroups) {
+  if (grp_cache == NULL && parse_group() == -1)
+    return -1;
+
+  *ngroups = 0;
+  groups[(*ngroups)++] = basegid;
+  for (unsigned g = 0; g < grp_cache_size; g++) {
+    for (int m = 0; m < NGROUPMEMB && grp_cache[g].gr_mem[m] != NULL; m++) {
+      if (!strcmp(name, grp_cache[g].gr_mem[m])) {
+        groups[(*ngroups)++] = grp_cache[g].gr_gid;
+        if (*ngroups >= NGROUPS)
+          return 0;
+      }
+    }
+  }
+  return 0;
 }

@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/file.h>
+#include <sys/param.h>
 #include <sys/signal.h>
 #include <sys/types.h>
 
@@ -28,6 +29,11 @@ struct proc {
   void *wchan;
   struct inode *cwd;
   struct file *ofile[NFILE];
+
+  uid_t uid;
+  gid_t gid;
+  int ngroups;
+  gid_t groups[NGROUPS];
 
   struct sigacts sigact;
   unsigned int sig_pending;

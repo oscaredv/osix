@@ -24,5 +24,11 @@
 #define SYS_ioctl 21
 #define SYS_lseek 22
 #define SYS_unlink 23
+#define SYS_getuid 24
+#define SYS_getgid 25
+#define SYS_setuid 26
+#define SYS_setgid 27
+#define SYS_setgroups 28
+#define SYS_getgroups 29
 
 #endif

@@ -8,4 +8,7 @@
 typedef short dev_t;
 typedef short pid_t;
 
+typedef unsigned short uid_t;
+typedef unsigned short gid_t;
+
 #endif

@@ -35,4 +35,10 @@ void *sbrk(int incr);
 
 char *crypt(const char *key);
 
+uid_t getuid(void);
+gid_t getgid(void);
+int setuid(uid_t uid);
+int setgid(gid_t gid);
+int getgroups(int size, gid_t list[]);
+
 #endif

@@ -35,6 +35,14 @@ int fork() {
   if (child->pgrp == 0)
     child->pgrp = child->pid;
 
+  // Inherit credentials
+  child->uid = cur_proc->uid;
+  child->gid = cur_proc->gid;
+  child->ngroups = cur_proc->ngroups;
+  for (int g = 0; g < NGROUPS; g++) {
+    child->groups[g] = cur_proc->groups[g];
+  }
+
   // Copy parents interrupt frame to kstack for popping into registers
   *child->context = *cur_proc->context;
   child->context->eax = 0; // fork() will return 0 in the child process

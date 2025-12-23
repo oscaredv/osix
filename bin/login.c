@@ -1,4 +1,5 @@
 #include <fcntl.h>
+#include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +47,19 @@ int main(int argc, const char *argv[]) {
   // Check if password matches passwd file
   char *hash = crypt(password);
   if (strcmp(hash, pw->pw_passwd) != 0) {
+    exit(EXIT_FAILURE);
+  }
+
+  // Set gid
+  if (setgid(pw->pw_gid)) {
+    exit(EXIT_FAILURE);
+  }
+
+  // Set supplementary groups
+  initgroups(pw->pw_name, pw->pw_gid);
+
+  // Set uid
+  if (setuid(pw->pw_uid)) {
     exit(EXIT_FAILURE);
   }
 

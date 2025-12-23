@@ -14,6 +14,8 @@
 int sys_open(const char *filename, int flags, int mode);
 int sys_exec(const char *pathname, const char *argv[], const char *env[]);
 int sys_unlink(const char *filepath);
+int sys_setgroups(int ngroups, const gid_t *gidset);
+int sys_getgroups(int size, gid_t list[]);
 
 void sysent(struct interrupt_frame *r) {
   cur_proc->context = r;
@@ -87,6 +89,24 @@ void sysent(struct interrupt_frame *r) {
     break;
   case SYS_unlink:
     r->eax = sys_unlink((const char *)r->ebx);
+    break;
+  case SYS_getuid:
+    r->eax = getuid();
+    break;
+  case SYS_getgid:
+    r->eax = getgid();
+    break;
+  case SYS_setuid:
+    r->eax = setuid(r->ebx);
+    break;
+  case SYS_setgid:
+    r->eax = setgid(r->ebx);
+    break;
+  case SYS_setgroups:
+    r->eax = sys_setgroups(r->ebx, (const gid_t *)r->ecx);
+    break;
+  case SYS_getgroups:
+    r->eax = sys_getgroups(r->ebx, (gid_t *)r->ecx);
     break;
   default:
     panic("Unhandled syscall!");
