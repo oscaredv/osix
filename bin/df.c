@@ -2,7 +2,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/buf.h>
 #include <sys/fs.h>
 #include <unistd.h>
