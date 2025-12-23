@@ -41,4 +41,6 @@ int setuid(uid_t uid);
 int setgid(gid_t gid);
 int getgroups(int size, gid_t list[]);
 
+long syscall(long number, ...);
+
 #endif

@@ -46,7 +46,7 @@ int kill(pid_t pid, int sig) {
 
 sighandler_t kern_signal(int sig, sighandler_t handler, void *sig_dispatcher) {
   if (sig == SIGKILL || sig < SIGHUP || sig > SIGTERM)
-    return SIG_ERR;
+    return (sighandler_t)-EINVAL;
 
   void *old = cur_proc->sigact.handlers[sig - 1];
   cur_proc->sigact.handlers[sig - 1] = handler;

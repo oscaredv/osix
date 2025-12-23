@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/syscall.h>
+#include <unistd.h>
 
 #define _NATEXIT 16
 
@@ -17,7 +18,7 @@ void exit(int status) {
   }
 
   fflush(stdout);
-  asm volatile("int $0x80" : : "a"(SYS_exit), "b"(status));
+  syscall(SYS_exit, status);
 }
 
 int atexit(void (*function)(void)) {

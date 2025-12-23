@@ -17,27 +17,14 @@ void sig_handler_dispatch() {
   sig_handler(sig);
 
   // Return back to kernel
-  asm volatile("int $0x80" : : "a"(SYS_sigreturn), "b"(sig));
+  syscall(SYS_sigreturn, sig);
 }
 
 // Syscall wrapper for installing signal handler
 sighandler_t signal(int sig, sighandler_t handler) {
-  void *old_handler;
-  asm volatile("int $0x80" : "=a"(old_handler) : "0"(SYS_signal), "b"(sig), "c"(handler), "d"(sig_handler_dispatch));
-  if (old_handler == SIG_ERR) {
-    errno = EINVAL;
-  }
-  return old_handler;
+  return (sighandler_t)syscall(SYS_signal, sig, (long)handler, (long)sig_handler_dispatch);
 }
 
-int kill(pid_t pid, int sig) {
-  int ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_kill), "b"(pid), "c"(sig));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
-}
+int kill(pid_t pid, int sig) { return syscall(SYS_kill, pid, sig); }
 
 int raise(int sig) { return kill(getpid(), sig); }

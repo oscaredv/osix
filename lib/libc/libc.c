@@ -5,107 +5,21 @@
 
 struct stat;
 
-int errno = 0;
+ssize_t write(int fd, const void *buf, size_t len) { return syscall(SYS_write, fd, (long)buf, len); }
 
-static inline long syscall0(int num) {
-  long ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(num));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
-}
+ssize_t read(int fd, void *buf, size_t len) { return syscall(SYS_read, fd, (long)buf, len); }
 
-static inline long syscall1(int num, long b) {
-  long ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(num), "b"(b));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
-}
+long lseek(int fd, long offset, int whence) { return syscall(SYS_lseek, fd, offset, whence); }
 
-static inline long syscall2(int num, long b, long c) {
-  long ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(num), "b"(b), "c"(c));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
-}
+pid_t getpid() { return syscall(SYS_getpid); }
 
-static inline long syscall3(int num, long b, long c, long d) {
-  long ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(num), "b"(b), "c"(c), "d"(d));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
-}
+pid_t getppid() { return syscall(SYS_getppid); }
 
-ssize_t write(int fd, const void *buf, size_t len) {
-  ssize_t ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_write), "b"(fd), "c"((int)buf), "d"(len));
-  return ret;
-}
+pid_t fork() { return syscall(SYS_fork); }
 
-ssize_t read(int fd, void *buf, size_t len) {
-  ssize_t ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_read), "b"(fd), "c"((int)buf), "d"(len));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
-}
+pid_t wait(int *status) { return syscall(SYS_wait, (long)status); }
 
-long lseek(int fd, long offset, int whence) {
-  long ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_lseek), "b"(fd), "c"(offset), "d"(whence));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
-}
-
-pid_t getpid() {
-  pid_t pid;
-  asm volatile("int $0x80" : "=a"(pid) : "0"(SYS_getpid));
-  return pid;
-}
-
-pid_t getppid() {
-  pid_t ppid;
-  asm volatile("int $0x80" : "=a"(ppid) : "0"(SYS_getppid));
-  return ppid;
-}
-
-pid_t fork() {
-  pid_t child_pid;
-  asm volatile("int $0x80" : "=a"(child_pid) : "0"(SYS_fork));
-  return child_pid;
-}
-
-pid_t wait(int *status) {
-  pid_t pid;
-  asm volatile("int $0x80" : "=a"(pid) : "0"(SYS_wait), "b"(status));
-  if (pid < 0) {
-    errno = -pid;
-    pid = -1;
-  }
-  return pid;
-}
-
-unsigned int sleep(unsigned int seconds) {
-  unsigned int remaining;
-  asm volatile("int $0x80" : "=a"(remaining) : "0"(SYS_sleep), "b"(seconds));
-  return remaining;
-}
+unsigned int sleep(unsigned int seconds) { return syscall(SYS_sleep, seconds); }
 
 int open(const char *filename, int flags, ...) {
   int mode = 0;
@@ -116,69 +30,31 @@ int open(const char *filename, int flags, ...) {
     va_end(args);
   }
 
-  ssize_t ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_open), "b"((long)filename), "c"(flags), "d"(mode));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
+  return syscall(SYS_open, (long)filename, flags, mode);
 }
 
-int close(int fd) {
-  int ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_close), "b"(fd));
-  return ret;
-}
+int close(int fd) { return syscall(SYS_close, fd); }
 
-int dup(int fd) {
-  int ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_dup), "b"(fd));
-  return ret;
-}
+int dup(int fd) { return syscall(SYS_dup, fd); }
 
-int chdir(const char *path) {
-  int ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_chdir), "b"(path));
-  return ret;
-}
+int chdir(const char *path) { return syscall(SYS_chdir, (long)path); }
 
-int stat(const char *path, struct stat *st) {
-  int ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_stat), "b"(path), "c"(st));
-  return ret;
-}
+int stat(const char *path, struct stat *st) { return syscall(SYS_stat, (long)path, (long)st); }
 
-int fstat(int fd, struct stat *st) {
-  int ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_fstat), "b"(fd), "c"(st));
-  return ret;
-}
+int fstat(int fd, struct stat *st) { return syscall(SYS_fstat, fd, (long)st); }
 
-int ioctl(int fd, int op, void *ptr) {
-  ssize_t ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_ioctl), "b"(fd), "c"(op), "d"(ptr));
-  if (ret < 0) {
-    errno = -ret;
-    ret = -1;
-  }
-  return ret;
-}
+int ioctl(int fd, int op, void *ptr) { return syscall(SYS_ioctl, fd, op, (long)ptr); }
 
-int unlink(const char *filepath) {
-  int ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_unlink), "b"(filepath));
-  return ret;
-}
+int unlink(const char *filepath) { return syscall(SYS_unlink, (long)filepath); }
 
-uid_t getuid() { return syscall0(SYS_getuid); }
+uid_t getuid() { return syscall(SYS_getuid); }
 
-uid_t getgid() { return syscall0(SYS_getgid); }
+uid_t getgid() { return syscall(SYS_getgid); }
 
-int setuid(uid_t uid) { return syscall1(SYS_setuid, uid); }
+int setuid(uid_t uid) { return syscall(SYS_setuid, uid); }
 
-int setgid(gid_t gid) { return syscall1(SYS_setgid, gid); }
+int setgid(gid_t gid) { return syscall(SYS_setgid, gid); }
 
-int setgroups(int ngroups, const gid_t *groups) { return syscall2(SYS_setgroups, ngroups, (long)groups); }
+int setgroups(int ngroups, const gid_t *groups) { return syscall(SYS_setgroups, ngroups, (long)groups); }
 
-int getgroups(int size, gid_t list[]) { return syscall2(SYS_getgroups, size, (long)list); }
+int getgroups(int size, gid_t list[]) { return syscall(SYS_getgroups, size, (long)list); }

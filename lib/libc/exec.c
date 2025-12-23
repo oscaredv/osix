@@ -4,11 +4,7 @@
 
 char **environ;
 
-int execv(const char *path, char *const argv[]) {
-  int ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_exec), "b"(path), "c"(argv), "d"(environ));
-  return ret;
-}
+int execv(const char *path, char *const argv[]) { return syscall(SYS_exec, (long)path, (long)argv, (long)environ); }
 
 int execl(const char *path, const char *arg, ...) {
   // Count arguments

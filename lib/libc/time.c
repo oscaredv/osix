@@ -2,13 +2,10 @@
 #include <stdio.h>
 #include <sys/syscall.h>
 #include <time.h>
+#include <unistd.h>
 
 // Time syscall
-time_t time(time_t *t) {
-  time_t ret;
-  asm volatile("int $0x80" : "=a"(ret) : "0"(SYS_time), "b"(t));
-  return ret;
-}
+time_t time(time_t *t) { return syscall(SYS_time, t); }
 
 int days_in_month[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
