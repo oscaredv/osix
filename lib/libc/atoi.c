@@ -9,6 +9,8 @@ int atoi(const char *s) {
       i += *s - '0';
     } else if (*s == '-' && i == 0) {
       neg = 1;
+    } else {
+      break;
     }
 
     ++s;

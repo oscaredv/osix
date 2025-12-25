@@ -1,0 +1,28 @@
+.TH ATOI 3
+.SH NAME
+atoi \- convert string to integer
+.SH SYNOPSIS
+.nf
+#include <stdlib.h>
+
+int atoi(const char *s);
+.fi
+.SH DESCRIPTION
+The
+.B atoi()
+function converts the initial portion of the string pointed to by
+.I s
+to an integer.
+
+The string may begin with an optional sign followed by a sequence of
+decimal digits.
+Conversion stops at the first character which is not a valid digit.
+.SH RETURN VALUES
+The
+.B atoi()
+function returns the converted integer value.
+If no valid conversion can be performed, zero is returned.
+.SH ERRORS
+The
+.B atoi()
+function does not detect errors.

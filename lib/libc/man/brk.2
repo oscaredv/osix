@@ -1,0 +1,48 @@
+.TH BRK 2
+.SH NAME
+brk, sbrk \- change data segment size
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+int   brk(void *addr);
+void *sbrk(int incr);
+.fi
+.SH DESCRIPTION
+The
+.B brk()
+and
+.B sbrk()
+functions are used to change the location of the program break,
+which defines the end of the process's data segment.
+
+The
+.B brk()
+function sets the program break to the value specified by
+.I addr.
+
+The
+.B sbrk()
+function increments the program break by
+.I incr
+bytes and returns the previous value of the program break.
+
+These functions are used to implement dynamic memory allocation.
+.SH RETURN VALUES
+The
+.B brk()
+function returns 0 on success and \-1 on failure.
+
+The
+.B sbrk()
+function returns the previous program break on success.
+On error, -1 is returned.
+.SH ERRORS
+The
+.B brk()
+and
+.B sbrk()
+functions may fail if the requested memory exceeds available
+resources or violates address space limits.
+.SH SEEALSO
+malloc(3)
