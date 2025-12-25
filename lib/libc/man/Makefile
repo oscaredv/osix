@@ -1,16 +1,25 @@
 OBJDIR=../../../obj
-MANDIR=$(OBJDIR)/usr/man/man2
+MAN2DIR=$(OBJDIR)/usr/man/man2
+MAN3DIR=$(OBJDIR)/usr/man/man3
 
-MAN=$(addprefix $(MANDIR)/, $(wildcard *.2))
-
+MAN2=$(addprefix $(MAN2DIR)/, $(wildcard *.2))
+MAN3=$(addprefix $(MAN3DIR)/, $(wildcard *.3))
+LINKS=$(MAN3DIR)/free.3
 .PHONY: all
-all: $(MAN)
+all: $(MAN2) $(MAN3) $(LINKS)
 
 .PHONY: clean
 clean:
-	$(RM) $(MAN)
+	$(RM) $(MAN2) $(MAN3) $(LINKS)
 
-$(OBJDIR)/usr/man/man2/%: %
-	@mkdir -p $(MANDIR)
+$(MAN2DIR)/%: %
+	@mkdir -p $(MAN2DIR)
 	cp $< $@
 
+$(MAN3DIR)/%: %
+	@mkdir -p $(MAN3DIR)
+	cp $< $@
+
+$(MAN3DIR)/free.3: malloc.3
+	@mkdir -p $(MAN3DIR)
+	cd $(MAN3DIR) && ln -sf malloc.3 free.3

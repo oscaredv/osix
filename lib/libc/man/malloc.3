@@ -1,0 +1,40 @@
+.TH MALLOC 3
+.SH NAME
+malloc, free \- memory allocation functions
+.SH SYNOPSIS
+.nf
+#include <stdlib.h>
+
+void *malloc(unsigned nbytes);
+void free(void *ap);
+.fi
+.SH DESCRIPTION
+The
+.B malloc()
+function allocates
+.I size
+bytes of memory and returns a pointer to the allocated memory.
+
+The
+.B free()
+function releases memory previously allocated by
+.B malloc().
+If
+.I ptr
+is NULL, no action is taken.
+The
+.B malloc()
+function returns a pointer to the allocated memory on success.
+If allocation fails, NULL is returned.
+.SH ERRORS
+.B malloc()
+may fail and return NULL if insufficient memory is available.
+.SH COPYRIGHT
+The
+.I malloc()
+and
+.I free()
+functions in OSIX are copied from "The C Programming Language" 2nd edition,
+written by Dennis Richie & Brian W. Kernigham, Copyright 1988 Bell Telephone
+Laboratories, Incorporated.
+
