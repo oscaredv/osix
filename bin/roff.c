@@ -76,7 +76,11 @@ void roff(char **words) {
 }
 
 int tp = 0;
+int no_fill = 0;
 void macros(char **words) {
+  if (words[0] == NULL)
+    return;
+
   if (strcmp(words[0], ".TH") == 0) {
     int title_len = strlen(words[1]) + strlen(words[2]) + 2;
     int col = title_len;
@@ -143,6 +147,8 @@ void macros(char **words) {
         printf("\e[0m");
       ++w;
     }
+  } else if (strcmp(words[0], ".nf") == 0) {
+    no_fill = 1;
   } else {
     roff(words);
   }
@@ -162,6 +168,14 @@ void macros(char **words) {
 void process_file(FILE *fp) {
   char line[MAX_LINE];
   while (fgets(line, sizeof(line), fp)) {
+    if (no_fill) {
+      if (strncmp(line, ".fi", 3) == 0) {
+        no_fill = 0;
+        continue;
+      }
+      printf("        %s", line);
+      continue;
+    }
 
     char *words[256];
     memset(words, 0, sizeof(words));
