@@ -1,0 +1,26 @@
+.TH SYSCALL 2
+.SH NAME
+syscall \- Function for calling kernel system calls
+.SH SYNOPSIS
+.nf
+#include <sys/syscall.h>
+#include <unistd.h>
+
+long syscall(long number, ...);
+.fi
+.SH DESCRIPTION
+The
+.I syscall()
+function enters the given system call in the kernel with a variable list of arguments.
+It contains the assemby code to enter the kernel from user space, and is used by
+.I libc
+syscall wrappers.
+The list of available syscalls are defined in
+.I sys/syscall.h
+.SH RETURN VALUES
+Each syscall returns different information of in types. But in general, the system calls
+return -1 for error, and 0 or a positive value for success. If -1 is returned, an error code
+is set in the
+.I errno
+variable.
+See the man page for the specific system call for detailed information about arguments and return values.

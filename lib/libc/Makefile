@@ -12,6 +12,7 @@ OBJS=$(addprefix $(OBJDIR)/, $(SRCS:%.c=%.o))
 
 .PHONY: all
 all: $(LIBDIR)/libc.a
+	$(MAKE) -C man
 
 .PHONY: clean
 clean:
