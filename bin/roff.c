@@ -100,7 +100,14 @@ void macros(char **words) {
     margin = DEFAULT_MARGIN;
     offset = 0;
   } else if (strcmp(words[0], ".SH") == 0) {
-    printf("\n\n\e[1m%s\e[0m\n", words[1]);
+    printf("\n\n\e[1m");
+    for (int i = 1; words[i] != NULL; i++) {
+      if (i > 1) {
+        printf(" ");
+      }
+      printf("%s", words[i]);
+    }
+    printf("\e[0m\n");
     margin = DEFAULT_MARGIN;
     offset = 0;
   } else if (strcmp(words[0], ".SS") == 0) {
