@@ -1,0 +1,34 @@
+.TH LSEEK 2
+.SH NAME
+lseek \- reposition read/write file offset
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+long lseek(int fd, long offset, int whence);
+.fi
+.SH DESCRIPTION
+The
+.B lseek()
+function sets the file offset for the file descriptor
+.I fd
+according to
+.I offset
+and
+.I whence.
+.SS whence:
+.TP
+.B SEEK_SET
+offset from the start of the file
+.TP
+.B SEEK_CUR
+offset from the current location in the file
+.TP
+.B SEEK_END
+offset from the end of the file
+.SH RETURN VALUES
+Upon successful completion, the resulting file offset is returned.
+On error, \-1 is returned.
+.SH SEE ALSO
+read(2),
+write(2)

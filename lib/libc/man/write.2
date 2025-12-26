@@ -1,0 +1,24 @@
+.TH WRITE 2
+.SH NAME
+write \- write to a file descriptor
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+ssize_t write(int fd, const void *buf, size_t len);
+.fi
+.SH DESCRIPTION
+The
+.B write()
+function writes
+.I len
+bytes from the buffer pointed to by
+.I buf
+to the object referenced by the file descriptor
+.I fd.
+.SH RETURN VALUES
+Upon successful completion, the number of bytes written is returned.
+On error, \-1 is returned.
+.SH SEE ALSO
+read(2),
+lseek(2)
