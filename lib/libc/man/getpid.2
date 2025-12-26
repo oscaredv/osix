@@ -1,0 +1,19 @@
+.TH GETPID 2
+.SH NAME
+getpid \- get process ID
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+pid_t getpid(void);
+.fi
+.SH DESCRIPTION
+The
+.B getpid()
+function returns the process ID of the calling process.
+.SH RETURN VALUES
+The
+.B getpid()
+function always returns the process ID.
+.SH SEE ALSO
+getppid(2)

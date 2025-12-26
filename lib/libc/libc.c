@@ -11,11 +11,11 @@ ssize_t read(int fd, void *buf, size_t len) { return syscall(SYS_read, fd, (long
 
 long lseek(int fd, long offset, int whence) { return syscall(SYS_lseek, fd, offset, whence); }
 
-pid_t getpid() { return syscall(SYS_getpid); }
+pid_t getpid(void) { return syscall(SYS_getpid); }
 
-pid_t getppid() { return syscall(SYS_getppid); }
+pid_t getppid(void) { return syscall(SYS_getppid); }
 
-pid_t fork() { return syscall(SYS_fork); }
+pid_t fork(void) { return syscall(SYS_fork); }
 
 pid_t wait(int *status) { return syscall(SYS_wait, (long)status); }
 

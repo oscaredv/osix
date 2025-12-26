@@ -1,0 +1,18 @@
+.TH SLEEP 2
+.SH NAME
+sleep \- suspend execution for an interval
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+unsigned int sleep(unsigned int seconds);
+.fi
+.SH DESCRIPTION
+The
+.B sleep()
+function suspends execution of the calling thread for at least
+.I seconds
+seconds.
+.SH RETURN VALUES
+If the requested time has elapsed, zero is returned.
+If interrupted, the number of seconds remaining is returned.

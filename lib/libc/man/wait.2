@@ -1,0 +1,21 @@
+.TH WAIT 2
+.SH NAME
+wait \- wait for process termination
+.SH SYNOPSIS
+.nf
+#include <sys/types.h>
+#include <sys/wait.h>
+
+pid_t wait(int *status);
+.fi
+.SH DESCRIPTION
+The
+.B wait()
+function suspends execution of the calling process until a child
+process terminates.
+.SH RETURN VALUES
+Upon successful completion, the process ID of the terminated child
+is returned.
+On error, \-1 is returned.
+.SH SEE ALSO
+fork(2)

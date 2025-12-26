@@ -1,0 +1,19 @@
+.TH GETPPID 2
+.SH NAME
+getppid \- get parent process ID
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+pid_t getppid(void);
+.fi
+.SH DESCRIPTION
+The
+.B getppid()
+function returns the process ID of the parent of the calling process.
+.SH RETURN VALUES
+The
+.B getppid()
+function always returns the parent process ID.
+.SH SEE ALSO
+getpid(2)

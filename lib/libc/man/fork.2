@@ -1,0 +1,23 @@
+.TH FORK 2
+.SH NAME
+fork \- create a new process
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+pid_t fork(void);
+.fi
+.SH DESCRIPTION
+The
+.B fork()
+function creates a new process by duplicating the calling process.
+The new process is referred to as the child process.
+.SH RETURN VALUES
+Upon successful completion,
+.B fork()
+returns 0 to the child process and the process ID of the child
+to the parent process.
+On error, \-1 is returned.
+.SH SEE ALSO
+wait(2),
+getpid(2)
