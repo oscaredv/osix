@@ -1,0 +1,31 @@
+.TH DUP 2
+.SH NAME
+dup, dup2 \- duplicate a file descriptor
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+int dup(int fd);
+int dup2(int old_fd, int new_fd);
+.fi
+.SH DESCRIPTION
+The
+.B dup()
+function returns a new file descriptor that refers to the same open
+file description as
+.I fd.
+
+The
+.B dup2()
+function duplicates
+.I old_fd
+to the file descriptor specified by
+.I new_fd.
+If
+.I new_fd
+is already open, it is closed first.
+.SH RETURN VALUES
+Upon successful completion, the new file descriptor is returned.
+On error, \-1 is returned.
+.SH SEE ALSO
+close(2)

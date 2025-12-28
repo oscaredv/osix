@@ -63,6 +63,9 @@ void sysent(struct interrupt_frame *r) {
   case SYS_dup:
     r->eax = dup(r->ebx);
     break;
+  case SYS_dup2:
+    r->eax = dup2(r->ebx, r->ecx);
+    break;
   case SYS_chdir:
     r->eax = chdir((const char *)r->ebx);
     break;

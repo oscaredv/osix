@@ -193,6 +193,22 @@ int dup(int fd) {
   return new_fd;
 }
 
+int dup2(int old_fd, int new_fd) {
+  if (old_fd < 0 || old_fd > NFILE || cur_proc->ofile[old_fd] == NULL)
+    return -EBADF;
+  if (new_fd < 0 || new_fd > NFILE)
+    return -EBADF;
+
+  if (cur_proc->ofile[new_fd] != NULL) {
+    file_close(cur_proc->ofile[new_fd]);
+  }
+
+  file_dup(cur_proc->ofile[old_fd]);
+  cur_proc->ofile[new_fd] = cur_proc->ofile[old_fd];
+
+  return new_fd;
+}
+
 ssize_t file_read(struct file *file, void *buf, size_t nbytes) {
   int lockstat = ilock(file->inode);
   if (lockstat != 0)

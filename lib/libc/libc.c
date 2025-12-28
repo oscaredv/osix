@@ -37,6 +37,8 @@ int close(int fd) { return syscall(SYS_close, fd); }
 
 int dup(int fd) { return syscall(SYS_dup, fd); }
 
+int dup2(int old_fd, int new_fd) { return syscall(SYS_dup2, old_fd, new_fd); }
+
 int chdir(const char *path) { return syscall(SYS_chdir, (long)path); }
 
 int stat(const char *path, struct stat *st) { return syscall(SYS_stat, (long)path, (long)st); }

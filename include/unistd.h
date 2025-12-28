@@ -19,6 +19,8 @@ long lseek(int fd, long offset, int whence);
 int unlink(const char *filepath);
 
 int dup(int fd);
+int dup2(int old_fd, int new_fd);
+
 int chdir(const char *path);
 
 pid_t getpid(void);
