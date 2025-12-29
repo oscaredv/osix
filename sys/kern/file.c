@@ -7,6 +7,7 @@
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/inode.h>
+#include <sys/pipe.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
@@ -40,6 +41,9 @@ struct file *file_alloc(void) {
 }
 
 void file_close(struct file *file) {
+  if (file->type != FT_INODE)
+    panic("not an inode");
+
   if (file->ref_count <= 0)
     panic("file_close");
 
@@ -56,7 +60,11 @@ int close(int fd) {
   if (fd < 0 || fd >= NFILE || cur_proc->ofile[fd] == NULL)
     return -1;
 
-  file_close(cur_proc->ofile[fd]);
+  if (cur_proc->ofile[fd]->type == FT_PIPE) {
+    pipe_close(cur_proc->ofile[fd]);
+  } else if (cur_proc->ofile[fd]->type == FT_INODE) {
+    file_close(cur_proc->ofile[fd]);
+  }
   cur_proc->ofile[fd] = NULL;
   return 0;
 }

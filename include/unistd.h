@@ -21,6 +21,8 @@ int unlink(const char *filepath);
 int dup(int fd);
 int dup2(int old_fd, int new_fd);
 
+int pipe(int fd[2]);
+
 int chdir(const char *path);
 
 pid_t getpid(void);

@@ -17,6 +17,7 @@ all: $(LIBDIR)/libc.a
 .PHONY: clean
 clean:
 	$(RM) $(LIBDIR)/libc.a $(OBJS)
+	$(MAKE) -C man clean
 
 $(LIBDIR)/libc.a: $(OBJS) ../crt0.S
 	@mkdir -p $(LIBDIR)

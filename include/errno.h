@@ -11,8 +11,10 @@ extern int errno;
 #define EBADF 9
 #define ECHILD 10
 #define ENOMEM 12
+#define EFAULT 14
 #define ENODEV 19
 #define EINVAL 22
+#define ENFILE 23
+#define EMFILE 24
 #define ENOTTY 25
-
 #endif

@@ -1,0 +1,47 @@
+.TH PIPE 2
+.SH NAME
+pipe \- create a pipe
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+int pipe(int fd[2]);
+.fi
+
+.SH DESCRIPTION
+The
+.B pipe()
+function creates a unidirectional data channel that can be used
+for interprocess communication.
+
+The array
+.I fd
+is filled with two file descriptors:
+.I fd[0]
+for reading and
+.I fd[1]
+for writing.
+.SH RETURN VALUES
+Upon successful completion, 0 is returned.
+On error, \-1 is returned.
+
+.SH ERRORS
+The
+.B pipe()
+function may fail if:
+.TP
+.B EMFILE
+The per-process limit on open file descriptors has been reached.
+.TP
+.B ENFILE
+The system-wide limit on open files or pipes has been reached.
+.TP
+.B EFAULT
+The
+.I fd
+argument points outside the process's address space.
+
+.SH SEE ALSO
+fork(2),
+read(2),
+write(2)

@@ -16,6 +16,7 @@
 #include <sys/conf.h>
 #include <sys/fs.h>
 #include <sys/multiboot.h>
+#include <sys/pipe.h>
 #include <sys/proc.h>
 #include <sys/system.h>
 
@@ -57,8 +58,8 @@ void main(unsigned long magic, struct multiboot_info *mb) {
   inode_init();
   file_init();
 
-  // Setup process table
   proc_init();
+  pipe_init();
 
   mount(ROOT_DEV);
 

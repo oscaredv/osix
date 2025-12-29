@@ -31,5 +31,6 @@
 #define SYS_setgroups 28
 #define SYS_getgroups 29
 #define SYS_dup2 30
+#define SYS_pipe 31
 
 #endif

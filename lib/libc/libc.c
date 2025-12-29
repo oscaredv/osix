@@ -60,3 +60,5 @@ int setgid(gid_t gid) { return syscall(SYS_setgid, gid); }
 int setgroups(int ngroups, const gid_t *groups) { return syscall(SYS_setgroups, ngroups, (long)groups); }
 
 int getgroups(int size, gid_t list[]) { return syscall(SYS_getgroups, size, (long)list); }
+
+int pipe(int fd[2]) { return syscall(SYS_pipe, (long)fd); }
