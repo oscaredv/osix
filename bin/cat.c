@@ -16,6 +16,12 @@ void cat(int fd) {
   }
 }
 
+void usage() {
+  fprintf(stderr, "usage: cat [-h] [FILE...]\n");
+  fprintf(stderr, "With no FILE or FILE is -, read from STDIN\n");
+  exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char **argv) {
   int ret = EXIT_SUCCESS;
   if (argc == 1) {
@@ -25,6 +31,8 @@ int main(int argc, char **argv) {
   for (int i = 1; i < argc; i++) {
     if (strcmp("-", argv[i]) == 0) {
       cat(STDERR_FILENO);
+    } else if (strcmp("-h", argv[i]) == 0) {
+      usage();
     } else {
       int fd = open(argv[i], O_RDONLY);
       if (fd == -1) {
