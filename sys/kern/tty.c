@@ -83,7 +83,7 @@ ssize_t tty_read(struct inode *inode, dev_t dev, void *buf, size_t count) {
         break;
       }
     } else if (c == 4) { // EOT
-      return EOF;
+      return 0;
     } else { // Echo all other characters
       if (tty->termios.c_lflag & ECHO)
         tty_write(dev, &c, 1);

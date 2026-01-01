@@ -381,7 +381,8 @@ int main(void) {
     fflush(stdout);
     int len = read(STDIN_FILENO, cmdline, sizeof(cmdline));
 
-    if (len <= 0) {
+    if (len <= 0 && errno != EINTR) {
+      // Exit on EOF or read error
       break;
     } else if (len > 0) {
       cmdline[len - 1] = 0;

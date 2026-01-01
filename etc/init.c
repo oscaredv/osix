@@ -18,19 +18,20 @@ struct tty {
 
 void single() {
   printf("Single user mode. Type \"exit\" or CTRL-d to continue boot\n");
-  short p = fork();
-  if (p == -1) {
+  short child = fork();
+  if (child == -1) {
     fprintf(stderr, "fork failed!\n");
     exit(-1);
-  } else if (p == 0) {
+  } else if (child == 0) {
     // Start root shell
     exit(execl("/bin/sh", "/bin/sh", "-", NULL));
   } else {
     int status;
-    if (wait(&status) == -1) {
-      fprintf(stderr, "wait failed!\n");
-      exit(-1);
-    }
+    int pid = 0;
+    do {
+      pid = wait(&status);
+    } while (pid != child);
+
     if (status != 0) {
       printf("sh exit status=%d\n", status);
     }
