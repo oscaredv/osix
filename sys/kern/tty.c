@@ -132,13 +132,18 @@ int tty_ioctl(dev_t dev, int op, void *ptr) {
   if (minor(dev) < 0 || minor(dev) >= NTTY || cdevsw[major(dev)].tty == NULL)
     return -ENOTTY;
 
+  if (ptr == NULL)
+    return -EFAULT;
+
   struct tty *tty = &cdevsw[major(dev)].tty[minor(dev)];
   struct termios *termios = ptr;
-  int ret = -1;
+  int ret = 0;
   if (op == TIOCGETA) {
     *termios = tty->termios;
   } else if (op == TIOCSETA) {
     tty->termios = *termios;
+  } else {
+    ret = -EINVAL;
   }
   return ret;
 }

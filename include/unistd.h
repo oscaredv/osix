@@ -47,4 +47,6 @@ int getgroups(int size, gid_t list[]);
 
 long syscall(long number, ...);
 
+int isatty(int fd);
+
 #endif

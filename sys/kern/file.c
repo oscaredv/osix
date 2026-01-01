@@ -190,7 +190,7 @@ struct file *file_dup(struct file *file) {
 
 int dup(int fd) {
   if (fd < 0 || fd > NFILE || cur_proc->ofile[fd] == NULL)
-    return -1;
+    return -EBADF;
 
   struct file *file = cur_proc->ofile[fd];
   int new_fd = file_fd_alloc(cur_proc, file);
@@ -265,10 +265,13 @@ int fstat(int fd, struct stat *st) {
 }
 
 int ioctl(int fd, int op, void *ptr) {
-  if (fd < 0 || fd >= NFILE || file[fd].ref_count < 1 || file[fd].inode == NULL)
+  if (fd < 0 || fd >= NFILE || cur_proc->ofile[fd] == NULL || cur_proc->ofile[fd]->ref_count < 1)
+    return -EBADF;
+
+  if (cur_proc->ofile[fd]->inode == NULL)
     return -ENOTTY;
 
-  struct inode *inode = file[fd].inode;
+  struct inode *inode = cur_proc->ofile[fd]->inode;
   dev_t dev = inode->dev;
 
   if ((inode->i_mode & S_IFMT) == S_IFCHR)

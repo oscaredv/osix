@@ -1,0 +1,30 @@
+.TH ISATTY 3
+.SH NAME
+isatty \- test whether a file descriptor refers to a terminal
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+int isatty(int fd);
+.fi
+.SH DESCRIPTION
+The
+.B isatty()
+function tests whether the file descriptor
+.I fd
+refers to a terminal device.
+.SH RETURN VALUES
+The
+.B isatty()
+function returns 1 if
+.I fd
+refers to a terminal.
+Otherwise, 0 is returned.
+.SH ERRORS
+If
+.I fd
+does not refer to a terminal, the error code
+.B ENOTTY
+is set.
+.SH SEE ALSO
+tcgetattr(3)
