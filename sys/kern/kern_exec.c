@@ -1,6 +1,6 @@
 #include <i386/idt.h>
 #include <i386/vmm.h>
-#include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <sys/inode.h>
 #include <sys/param.h>
@@ -12,7 +12,7 @@
 int sys_exec(const char *pathname, const char *argv[], const char *envp[]) {
   struct inode *inode = namei(pathname);
   if (inode == NULL) {
-    return -1;
+    return -ENOENT;
   }
 
   // Allocate and initialize new user stack, and copy data to it before we replace the old user pages

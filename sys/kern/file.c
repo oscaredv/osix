@@ -41,24 +41,27 @@ struct file *file_alloc(void) {
 }
 
 void file_close(struct file *file) {
-  if (file->type != FT_INODE)
-    panic("not an inode");
+  if(!file)
+    return;
+  if (file->type == FT_PIPE) {
+    pipe_close(file);
+  } else if (file->type == FT_INODE) {
+    if (file->ref_count <= 0)
+      panic("file_close");
 
-  if (file->ref_count <= 0)
-    panic("file_close");
-
-  if (--file->ref_count == 0) {
-    if (file->inode) {
-      iput(file->inode);
-      file->inode = NULL;
+    if (--file->ref_count == 0) {
+      if (file->inode) {
+        iput(file->inode);
+        file->inode = NULL;
+      }
+      // File is no more...
     }
-    // File is no more...
   }
 }
 
 int close(int fd) {
   if (fd < 0 || fd >= NFILE || cur_proc->ofile[fd] == NULL)
-    return -1;
+    return -EBADF;
 
   if (cur_proc->ofile[fd]->type == FT_PIPE) {
     pipe_close(cur_proc->ofile[fd]);

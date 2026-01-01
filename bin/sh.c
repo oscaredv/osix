@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -11,9 +12,23 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define MAX_LINE 1024
 #define PROMPT_SIZE 16
+#define MAX_ARGS 256
+#define MAX_CMDS 16
+
+struct Command {
+  char *argv[MAX_ARGS];
+  char *input;
+  char *output;
+  int append;
+};
+struct Command cmds[MAX_CMDS];
 
 char prompt[PROMPT_SIZE] = "$ ";
+
+char *allocs[MAX_ARGS];
+int alloc_count;
 
 int internal_cmd(char *argv[]) {
   if (!strcmp(argv[0], "exit")) {
@@ -70,8 +85,13 @@ int pattern_match(const char *pattern, const char *s) {
   return !*pattern;
 }
 
-char sstore_buf[1024];
-char *sstore;
+char *alloc_string(const char *s) {
+  int len = strlen(s) + 1;
+  char *p = malloc(len);
+  strncpy(p, s, len);
+  allocs[alloc_count++] = p;
+  return p;
+}
 
 void explode_pattern(const char *base, const char *pattern, int *argc, char *argv[]) {
   const char *p = pattern;
@@ -112,10 +132,8 @@ void explode_pattern(const char *base, const char *pattern, int *argc, char *arg
                 snprintf(fullname, sizeof(fullname), "%s/%s", base, dir.d_name);
               }
 
-              int de_len = strlen(fullname) + 1;
-              argv[(*argc)++] = strncpy(sstore, fullname, de_len);
-              sstore += de_len;
-
+              argv[*argc] = alloc_string(fullname);
+              (*argc)++;
             } else {
               char next_base[strlen(base) + 1 + strlen(dir.d_name) + 1];
               if (base[0] == 0) {
@@ -136,14 +154,128 @@ void explode_pattern(const char *base, const char *pattern, int *argc, char *arg
   }
 }
 
-void exec_cmd(char *cmdline) {
-  if (*cmdline == 0)
-    return;
+void debug_pipeline(struct Command *cmds, int n) {
+  for (int i = 0; i < n; i++) {
+    printf("  Command %d: input=%s output=%s append=%d\n", i, cmds[i].input, cmds[i].output, cmds[i].append);
+    for (int a = 0; a < MAX_ARGS && cmds[i].argv[a] != NULL; a++) {
+      printf("    argv[%d]: %s\n", a, cmds[i].argv[a]);
+    }
+    if (i < n - 1) {
+      printf("   |\n");
+    }
+  }
+  printf("\n");
+}
 
-  sstore = sstore_buf; // Reset string store
-  char *argv[256];
-  memset(argv, 0, sizeof(argv));
+void exec_pipeline(struct Command *cmds, int n) {
+  int pipes[2 * (n - 1)];
 
+  for (int i = 0; i < n - 1; i++) {
+    pipe(pipes + i * 2);
+  }
+
+  for (int i = 0; i < n; i++) {
+    if (internal_cmd(cmds[i].argv)) {
+      continue;
+    }
+
+    pid_t pid = fork();
+    if (pid == 0) {
+      // Connect output to input
+      if (i > 0) {
+        dup2(pipes[(i - 1) * 2], STDIN_FILENO);
+      }
+      if (i < n - 1) {
+        dup2(pipes[i * 2 + 1], STDOUT_FILENO);
+      }
+
+      // Redirections
+      if (cmds[i].input) {
+        int fd = open(cmds[i].input, O_RDONLY);
+        dup2(fd, STDIN_FILENO);
+        close(fd);
+      }
+
+      if (cmds[i].output) {
+        int flags = O_WRONLY | O_CREAT | (cmds[i].append ? O_APPEND : O_TRUNC);
+        int fd = open(cmds[i].output, flags, 0644);
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+      }
+
+      // close all pipes
+      for (int j = 0; j < 2 * (n - 1); j++) {
+        close(pipes[j]);
+      }
+
+      char path[strlen(cmds[i].argv[0]) + 6];
+      if (*cmds[i].argv[0] == '/' || *cmds[i].argv[0] == '.') {
+        snprintf(path, sizeof(path), "%s", cmds[i].argv[0]);
+      } else {
+        snprintf(path, sizeof(path), "/bin/%s", cmds[i].argv[0]);
+      }
+      int ret = execv(path, cmds[i].argv);
+      perror(cmds[i].argv[0]);
+      exit(ret);
+    }
+  }
+
+  // parent closes pipes
+  for (int i = 0; i < 2 * (n - 1); i++) {
+    close(pipes[i]);
+  }
+}
+
+char *resolve_var(char *p) {
+  if (p[0] != '$')
+    return p;
+
+  char *var = getenv(&p[1]);
+  if (var)
+    return var;
+  return p;
+}
+
+char *parse_redir(struct Command *cmd, char *p) {
+  int input = 0;
+
+  if (*p == '<')
+    input = 1;
+
+  *p++ = 0;
+
+  if (*p == '>') {
+    input = 0;
+    cmd->append = 1;
+    p++;
+  }
+
+  while (*p == ' ')
+    p++;
+
+  if (input)
+    cmd->input = p;
+  else
+    cmd->output = p;
+
+  while (*p != ' ' && *p != 0 && *p != '<' && *p != '>')
+    ++p;
+
+  if (*p == '<' || *p == '>') {
+    p = parse_redir(cmd, p);
+  } else if (*p != 0) {
+    *p++ = 0;
+  }
+
+  if (cmd->input)
+    cmd->input = resolve_var(cmd->input);
+  if (cmd->output)
+    cmd->output = resolve_var(cmd->output);
+
+  return p;
+}
+
+void parse_cmd(struct Command *cmd, char *cmdline) {
   int argc = 0;
   char *p = cmdline;
   while (*p != 0) {
@@ -152,61 +284,81 @@ void exec_cmd(char *cmdline) {
     if (*p == 0)
       break;
 
-    argv[argc] = p;
+    if (*p == '<' || *p == '>') {
+      p = parse_redir(cmd, p);
+      continue;
+    }
+
+    cmd->argv[argc] = p;
     char pattern = 0;
-    while (*p != ' ' && *p != 0 && *p != '\n') {
+    while (*p != ' ' && *p != 0 && *p != '<' && *p != '>') {
       if (*p == '*' || *p == '?')
         pattern = 1;
       ++p;
     }
-    if (*p == ' ')
+    if (*p == '<' || *p == '>') {
+      p = parse_redir(cmd, p);
+    }
+    if (*p != 0)
       *p++ = 0;
 
     // Environment variable expansion
-    if (argv[argc][0] == '$') {
-      char *var = getenv(&argv[argc][1]);
-      if (var)
-        argv[argc] = var;
-    }
+    cmd->argv[argc] = resolve_var(cmd->argv[argc]);
 
     if (pattern) {
       int old_argc = argc;
-      explode_pattern("", argv[argc], &argc, argv);
+      explode_pattern("", cmd->argv[argc], &argc, cmd->argv);
       if (argc == old_argc)
         argc++;
     } else {
       argc++;
     }
   }
-  argv[argc] = NULL;
+  cmd->argv[argc] = NULL;
+}
 
-  if (!internal_cmd(argv)) {
-    char path[strlen(argv[0]) + 6];
-    if (*argv[0] == '/' || *argv[0] == '.') {
-      snprintf(path, sizeof(path), "%s", argv[0]);
-    } else {
-      snprintf(path, sizeof(path), "/bin/%s", argv[0]);
-    }
+void parse_pipeline(char *cmdline) {
+  memset(cmds, 0, sizeof(cmds));
+  char *p = cmdline;
+  int c = 0;
+  while (*p != 0) {
+    while (*p == ' ')
+      p++;
+    char *start = p;
+    while (*p != '|' && *p != 0)
+      p++;
+    if (*p == '|')
+      *p++ = 0;
 
-    struct stat st;
-    if (stat(path, &st) == -1) {
-      fprintf(stderr, "%s: Command not found!\n", argv[0]);
-      return;
-    }
+    parse_cmd(&cmds[c++], start);
+  }
 
-    pid_t pid = fork();
-    if (pid == -1) {
-      fprintf(stderr, "Fork failed!\n");
-    } else if (pid == 0) {
-      exit(execv(path, argv));
-    } else {
-      int exit_code = 0;
-      while (wait(&exit_code) == -1)
-        ;
+  exec_pipeline(cmds, c);
 
-      if (exit_code != 0)
-        fprintf(stderr, "exit code=%d\n", exit_code);
-    }
+  // Free allocated strings
+  for (int i = 0; i < alloc_count; i++) {
+    free(allocs[i]);
+  }
+  alloc_count = 0;
+
+  // Wait for children
+  for (int i = 0; i < c; i++) {
+    wait(NULL);
+  }
+}
+
+void parse_separator(char *cmdline) {
+  char *p = cmdline;
+  while (*p != 0) {
+    while (*p == ' ')
+      p++;
+    char *start = p;
+    while (*p != ';' && *p != 0)
+      p++;
+    if (*p == ';')
+      *p++ = 0;
+
+    parse_pipeline(start);
   }
 }
 
@@ -215,27 +367,25 @@ void sighandler(int signum) {
   printf("^C\n");
 }
 
-int main(int argc, char *argv[]) {
-  (void)argc;
-  (void)argv;
-
+int main(void) {
   signal(SIGINT, sighandler);
+  alloc_count = 0;
 
   if (getuid() == 0) {
     strncpy(prompt, "# ", PROMPT_SIZE);
   }
 
-  char cmdline[1024];
+  char cmdline[MAX_LINE];
   while (1) {
     printf("%s", prompt);
     fflush(stdout);
     int len = read(STDIN_FILENO, cmdline, sizeof(cmdline));
 
-    if (len == EOF) {
+    if (len <= 0) {
       break;
     } else if (len > 0) {
       cmdline[len - 1] = 0;
-      exec_cmd(cmdline);
+      parse_separator(cmdline);
     }
   }
 
