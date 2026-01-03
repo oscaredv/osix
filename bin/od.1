@@ -1,0 +1,28 @@
+.TH OD 1
+.SH NAME
+od \- display file contents in various formats
+.SH SYNOPSIS
+.B od
+[ -x | -h ] [ file ... ]
+.SH DESCRIPTION
+The
+.B od
+utility reads input files (or standard input if no files are specified)
+and writes a formatted output of their contents. If file is - or if no filenames
+are given,
+.I stdin
+is read.
+
+The following options are supported:
+.TP
+.B \-x
+Display output in hexadecimal format.
+.TP
+.B \-h
+Display a short help message and exit.
+.SH EXIT STATUS
+The
+.B od
+utility exits 0 on success, and >0 if an error occurs.
+.SH SEE ALSO
+cat(1)
