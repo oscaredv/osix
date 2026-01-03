@@ -12,7 +12,7 @@ FILE _iob[_NFILE];
 FILE *falloc() {
   for (int i = 0; i < _NFILE; i++) {
     if (_iob[i].flags == 0) {
-      _iob[i].flags = 1;
+      _iob[i].flags = _IOREAD;
       _iob[i].size = 0;
       _iob[i].buf_size = sizeof(_iob[i].buf);
       _iob[i].ptr = _iob[i].buf;
@@ -74,7 +74,7 @@ FILE *fdopen(int fd, const char *mode) {
 
 int fclose(FILE *f) {
   if (f->flags == 0)
-    return -1;
+    return EOF;
 
   // TODO: write?
   close(f->fd);
@@ -92,6 +92,8 @@ void _filebuf(FILE *f) {
   } while (s == -1 && errno == EINTR);
   if (s > 0)
     f->size = s;
+  if (s == 0)
+    f->flags |= _IOEOF;
 }
 
 size_t fread(void *ptr, size_t size, size_t count, FILE *f) {
@@ -100,6 +102,10 @@ size_t fread(void *ptr, size_t size, size_t count, FILE *f) {
 
   while (total > 0) {
     if (f->size == 0) {
+      if (f->flags & _IOEOF) {
+        return 0;
+      }
+      fflush(f);
       _filebuf(f);
       if (f->size == 0) {
         break;

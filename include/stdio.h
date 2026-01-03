@@ -7,6 +7,10 @@
 #define EOF (-1)
 #define BUFSIZ 1024
 
+#define _IOREAD 1
+#define _IOWRT 2
+#define _IOEOF 4
+
 typedef struct {
   int fd;
   char buf[1024];
