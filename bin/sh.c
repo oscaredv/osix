@@ -208,13 +208,8 @@ void exec_pipeline(struct Command *cmds, int n) {
         close(pipes[j]);
       }
 
-      char path[strlen(cmds[i].argv[0]) + 6];
-      if (*cmds[i].argv[0] == '/' || *cmds[i].argv[0] == '.') {
-        snprintf(path, sizeof(path), "%s", cmds[i].argv[0]);
-      } else {
-        snprintf(path, sizeof(path), "/bin/%s", cmds[i].argv[0]);
-      }
-      int ret = execv(path, cmds[i].argv);
+      // Execute command
+      int ret = execvp(cmds[i].argv[0], cmds[i].argv);
       perror(cmds[i].argv[0]);
       exit(ret);
     }

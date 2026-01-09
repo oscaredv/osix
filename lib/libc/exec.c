@@ -1,10 +1,52 @@
+#include <errno.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/syscall.h>
+#include <sys/syslimits.h>
 #include <unistd.h>
 
 char **environ;
 
 int execv(const char *path, char *const argv[]) { return syscall(SYS_exec, (long)path, (long)argv, (long)environ); }
+
+int execvp(const char *path, char *const argv[]) {
+  if (*path == '/' || *path == '.') {
+    return syscall(SYS_exec, (long)path, (long)argv, (long)environ);
+  }
+
+  for (int e = 0; environ[e] != NULL; e++) {
+    // Look for PATH variable
+    if (strncmp(environ[e], "PATH=", 5) == 0) {
+      char *p = environ[e] + 5;
+      char *start = p;
+      while (1) {
+        if (*p == ':' || *p == 0) {
+          char saved = *p;
+          *p = 0;
+
+          // Construct full path
+          char fullpath[PATH_MAX];
+          snprintf(fullpath, sizeof(fullpath), "%s/%s", start, path);
+
+          // Try to execute
+          int ret = syscall(SYS_exec, (long)fullpath, (long)argv, (long)environ);
+          if (ret != -1) {
+            return ret;
+          }
+
+          *p = saved;
+          if (saved == 0)
+            break;
+          start = p + 1;
+        }
+        p++;
+      }
+    }
+  }
+
+  return -ENOENT;
+}
 
 int execl(const char *path, const char *arg, ...) {
   // Count arguments
