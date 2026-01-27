@@ -1,0 +1,51 @@
+.TH EXEC 2
+.SH NAME
+execv, execvp, execl \- execute a program
+.SH SYNOPSIS
+.nf
+#include <unistd.h>
+
+int execv(const char *path, char *const argv[]);
+int execvp(const char *file, char *const argv[]);
+int execl(const char *path, const char *arg, ...);
+.fi
+.SH DESCRIPTION
+The
+.B exec
+functions replace the current process image with a new process image.
+
+The
+.B execv()
+function executes the program specified by
+.I path
+with argument vector
+.I argv.
+
+The
+.B execvp()
+function is identical to
+.B execv()
+except that the file to be executed is searched for in the directories
+listed in the PATH environment variable.
+
+The
+.B execl()
+function is similar to
+.B execv()
+but takes the argument list as a variable-length list of arguments,
+terminated by a NULL pointer.
+
+On success, these functions do not return.
+.SH RETURN VALUES
+If an error occurs, \-1 is returned and the process image is not replaced.
+.SH ERRORS
+The
+.B exec
+functions may fail if:
+.TP
+.B ENOENT
+The file does not exist or a required interpreter does not exist.
+
+.SH SEE ALSO
+fork(2),
+wait(2)

@@ -5,6 +5,7 @@ MAN3DIR=$(OBJDIR)/usr/man/man3
 MAN2=$(addprefix $(MAN2DIR)/, $(wildcard *.2))
 MAN3=$(addprefix $(MAN3DIR)/, $(wildcard *.3))
 LINKS=$(MAN3DIR)/free.3 $(MAN2DIR)/sbrk.2 $(MAN2DIR)/getppid.2 $(MAN2DIR)/dup2.2
+LINKS+=$(MAN2DIR)/execv.2 $(MAN2DIR)/execvp.2 $(MAN2DIR)/execl.2
 
 .PHONY: all
 all: $(MAN2) $(MAN3) $(LINKS)
@@ -36,3 +37,15 @@ $(MAN2DIR)/getppid.2: getpid.2
 $(MAN2DIR)/dup2.2: dup.2
 	@mkdir -p $(MAN2DIR)
 	cd $(MAN2DIR) && ln -sf dup.2 dup2.2
+
+$(MAN2DIR)/execv.2: exec.2
+	@mkdir -p $(MAN2DIR)
+	cd $(MAN2DIR) && ln -sf exec.2 execv.2
+
+$(MAN2DIR)/execvp.2: exec.2
+	@mkdir -p $(MAN2DIR)
+	cd $(MAN2DIR) && ln -sf exec.2 execvp.2
+
+$(MAN2DIR)/execl.2: exec.2
+	@mkdir -p $(MAN2DIR)
+	cd $(MAN2DIR) && ln -sf exec.2 execl.2
