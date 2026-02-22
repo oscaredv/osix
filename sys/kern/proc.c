@@ -38,11 +38,12 @@ void proc_init_kstack(struct proc *p) {
 }
 
 uintptr_t proc_init_ustack(uintptr_t ustack, const char *argv[], const char *parent_envp[]) {
+  uintptr_t esp = SYS_VADDR_TMP;
+
   // Temporary map stack to kernel memory
-  pmap_kenter(P2V(ustack), ustack, VM_PROT_ALL);
+  pmap_kenter(esp, ustack, VM_PROT_ALL);
 
   // Clear stack
-  uintptr_t esp = P2V(ustack);
   memset((void *)esp, 0, PAGE_SIZE);
 
   // The new stack is mapped to a temporary address, this offset is used to calculate actual addresses
@@ -123,7 +124,7 @@ uintptr_t proc_init_ustack(uintptr_t ustack, const char *argv[], const char *par
   memcpy((void *)esp, &envp_addr, sizeof(envp_addr));
 
   // Unmap from temporary address
-  pmap_kremove(P2V(ustack), P2V(ustack + PAGE_SIZE));
+  pmap_kremove(SYS_VADDR_TMP, SYS_VADDR_TMP + PAGE_SIZE);
   return esp - esp_offset;
 }
 

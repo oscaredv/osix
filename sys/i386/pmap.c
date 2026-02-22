@@ -2,10 +2,8 @@
 #include <i386/vmm.h>
 #include <string.h>
 #include <sys/proc.h>
-#include <vm/pmap.h>
-
-#include <stdio.h>
 #include <sys/system.h>
+#include <vm/pmap.h>
 
 extern void *_kernel_end;
 extern uint32_t sys_pg_dir[PAGE_DIR_LEN];
@@ -13,89 +11,135 @@ extern uint32_t sys_pg_table[PAGE_TABLE_LEN];
 
 struct pmap kernel_pmap;
 
-void pmap_activate(const struct proc *p) { asm volatile("movl %0,%%cr3" : : "r"(p->pmap.pg_dir_paddr)); }
+struct pmap *cur_pmap;
+
+// Pointer to recursive page directory map that gives access to page directory and tables through virtual memory
+uint32_t (*pte_map)[1024];
+uint32_t *pg_dir;
+
+void pmap_activate_pmap(struct pmap *pmap) {
+  cur_pmap = pmap;
+  asm volatile("movl %0,%%cr3" : : "r"(pmap->pg_dir_paddr));
+}
+
+void pmap_activate(struct proc *p) { pmap_activate_pmap(&p->pmap); }
 
 void pmap_create(struct pmap *pmap) {
   // Alloc page directory
   pmap->pg_dir_paddr = vmm_alloc_page();
-  pmap->pg_dir = (uint32_t *)P2V(pmap->pg_dir_paddr);
 
-  // Map page directory to kernel memory and clear it
-  pmap_kenter(P2V(pmap->pg_dir_paddr), (uintptr_t)pmap->pg_dir_paddr, VM_PROT_ALL);
-  memset(pmap->pg_dir, 0, PAGE_SIZE);
+  // Temporarily map to kernel memory and clear it
+  pmap_kenter(SYS_VADDR_TMP, (uintptr_t)pmap->pg_dir_paddr, VM_PROT_ALL);
+  pmap_flush();
+  memset((void *)SYS_VADDR_TMP, 0, PAGE_SIZE);
 
   // Map kernel page table to vaddr SYS_VADDR
-  pmap->pg_dir[SYS_VADDR_INDEX] = V2P(sys_pg_table) | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+  uint32_t *pg_dir = (uint32_t *)SYS_VADDR_TMP;
+  pg_dir[SYS_VADDR_INDEX] = V2P(sys_pg_table) | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+
+  // Recursive mapping of page directory to itself, allows access to page tables through virtual memory
+  pg_dir[PTE_MAP_INDEX] = (uint32_t)pmap->pg_dir_paddr | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+
+  // Unmap from kernel memory
+  pmap_kremove(SYS_VADDR_TMP, SYS_VADDR_TMP + PAGE_SIZE);
 }
 
 void pmap_destroy(struct pmap *pmap) {
-  // Unmap from kernel memory
+  struct pmap *old_pmap = cur_pmap;
+  if (cur_pmap != pmap)
+    pmap_activate_pmap(pmap);
+
+  // Free all user mode pages
   for (unsigned int pd_index = 0; pd_index < SYS_VADDR_INDEX; pd_index++) {
-    if (pmap->pg_dir[pd_index] & PAGE_PRESENT) {
+    if (pg_dir[pd_index] & PAGE_PRESENT) {
       // Unmap and free page table
-      unsigned long pg_table = pmap->pg_dir[pd_index] & PAGE_MASK;
-      pmap_remove(pmap, P2V(pg_table), P2V(pg_table + PAGE_SIZE));
+      // unsigned long pg_table = pmap->pg_dir[pd_index] & PAGE_MASK;
+      unsigned long pg_table = pg_dir[pd_index] & PAGE_MASK;
       vmm_free_page((void *)pg_table);
     }
   }
 
+  // Get out of the pmap before we destroy it
+  if (cur_pmap != old_pmap)
+    pmap_activate_pmap(old_pmap);
+
   // Unmap and free page directory
-  pmap_remove(pmap, P2V(pmap->pg_dir_paddr), P2V(pmap->pg_dir_paddr) + PAGE_SIZE);
   vmm_free_page(pmap->pg_dir_paddr);
   pmap->pg_dir_paddr = NULL;
 }
 
 unsigned long pmap_extract(struct pmap *pmap, unsigned long vaddr) {
+  struct pmap *old_pmap = cur_pmap;
+  if (cur_pmap != pmap)
+    pmap_activate_pmap(pmap);
+
   unsigned long pd_index = vaddr >> PAGE_DIR_SHIFT;
 
   // Out of page directory range, or page table not mapped
-  if (pd_index >= PAGE_DIR_LEN || !pmap->pg_dir[pd_index] & PAGE_PRESENT)
+  if (pd_index >= PAGE_DIR_LEN || !(pg_dir[pd_index] & PAGE_PRESENT)) {
+    if (cur_pmap != old_pmap)
+      pmap_activate_pmap(old_pmap);
     return 0;
+  }
 
   // Get the page table
-  uint32_t *pg_table = (uint32_t *)V2P(pmap->pg_dir[pd_index] & PAGE_MASK);
-
   unsigned long pt_index = (vaddr & PAGE_TABLE_MASK) >> PAGE_SHIFT;
 
-  if ((pg_table[pt_index] & PAGE_PRESENT) == 0)
+  // Get page table entry
+  unsigned long entry = pte_map[pd_index][pt_index];
+
+  if (cur_pmap != old_pmap)
+    pmap_activate_pmap(old_pmap);
+
+  if ((entry & PAGE_PRESENT) == 0)
     return 0; // not mapped
 
-  return pg_table[pt_index] & PAGE_MASK;
+  return entry & PAGE_MASK;
 }
 
 void pmap_kenter(unsigned long vaddr, unsigned long paddr, unsigned int prot) {
   pmap_enter(&kernel_pmap, vaddr, paddr, prot);
 }
 
+void pmap_enter_raw(struct pmap *pmap, unsigned long vaddr, unsigned long paddr, unsigned int prot) {
+  unsigned long pd_index = vaddr >> PAGE_DIR_SHIFT;
+  unsigned long pt_index = (vaddr & PAGE_TABLE_MASK) >> PAGE_SHIFT;
+
+  pte_map[pd_index][pt_index] = paddr | PAGE_PRESENT;
+
+  if (prot & VM_PROT_WRITE)
+    pte_map[pd_index][pt_index] |= PAGE_WRITABLE;
+
+  if (pmap != &kernel_pmap)
+    pte_map[pd_index][pt_index] |= PAGE_USER;
+}
+
 void pmap_enter(struct pmap *pmap, unsigned long vaddr, unsigned long paddr, unsigned int prot) {
+  struct pmap *old_pmap = cur_pmap;
+  if (cur_pmap != pmap)
+    pmap_activate_pmap(pmap);
+
   unsigned long pd_index = vaddr >> PAGE_DIR_SHIFT;
 
   // Out of page directory range, or page table not mapped
   if (pd_index >= PAGE_DIR_LEN)
     panic("pmap_enter");
 
-  if ((pmap->pg_dir[pd_index] & PAGE_PRESENT) == 0) {
+  if ((pg_dir[pd_index] & PAGE_PRESENT) == 0) {
     // Alloc page table
     unsigned long pg_table_paddr = (unsigned long)vmm_alloc_page();
 
     // Map page table to kernel memory and clear it
-    pmap_kenter(P2V(pg_table_paddr), pg_table_paddr, VM_PROT_ALL);
-    memset((void *)P2V(pg_table_paddr), 0, PAGE_SIZE);
+    pmap_zero_page(pg_table_paddr);
 
     // Map user page table to vaddr 0, and kernel page table to vaddr SYS_VADDR
-    pmap->pg_dir[pd_index] = pg_table_paddr | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+    pg_dir[pd_index] = pg_table_paddr | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
   }
 
-  // Get the page table
-  uint32_t *pg_table = (uint32_t *)V2P(pmap->pg_dir[pd_index] & PAGE_MASK);
-  unsigned long pt_index = (vaddr & PAGE_TABLE_MASK) >> PAGE_SHIFT;
+  pmap_enter_raw(pmap, vaddr, paddr, prot);
 
-  pg_table[pt_index] = paddr | PAGE_PRESENT;
-  if (prot & VM_PROT_WRITE)
-    pg_table[pt_index] |= PAGE_WRITABLE;
-
-  if (pmap != &kernel_pmap)
-    pg_table[pt_index] |= PAGE_USER;
+  if (cur_pmap != old_pmap)
+    pmap_activate_pmap(old_pmap);
 }
 
 void pmap_kremove(unsigned long vaddr_start, unsigned long vaddr_end) {
@@ -103,46 +147,61 @@ void pmap_kremove(unsigned long vaddr_start, unsigned long vaddr_end) {
 }
 
 void pmap_remove(struct pmap *pmap, unsigned long vaddr_start, unsigned long vaddr_end) {
+  struct pmap *old_pmap = cur_pmap;
+  if (cur_pmap != pmap)
+    pmap_activate_pmap(pmap);
+
   for (unsigned long vaddr = vaddr_start; vaddr + PAGE_SIZE <= vaddr_end; vaddr += PAGE_SIZE) {
     unsigned long pd_index = vaddr >> PAGE_DIR_SHIFT;
 
     if (pd_index >= PAGE_DIR_LEN)
       break;
 
-    // Get the page table
-    uint32_t *pg_table = (uint32_t *)V2P(pmap->pg_dir[pd_index] & PAGE_MASK);
     unsigned long pt_index = (vaddr & PAGE_TABLE_MASK) >> PAGE_SHIFT;
-    pg_table[pt_index] = 0;
+    pte_map[pd_index][pt_index] = 0;
   }
+
+  if (cur_pmap != old_pmap)
+    pmap_activate_pmap(old_pmap);
 }
 
 void pmap_zero_page(unsigned long paddr) {
-  // Map to kernel virtual memory
-  pmap_kenter(P2V(paddr), paddr, VM_PROT_WRITE);
+  // Temporarily map to kernel virtual memory
+  pmap_kenter(SYS_VADDR_TMP, paddr, VM_PROT_WRITE);
+  pmap_flush();
 
   // Zero page of memory
-  memset((void *)P2V(paddr), 0, PAGE_SIZE);
+  memset((void *)SYS_VADDR_TMP, 0, PAGE_SIZE);
 
   // Unmap from kernel memory
-  pmap_kremove(P2V(paddr), P2V(paddr + PAGE_SIZE));
+  pmap_kremove(SYS_VADDR_TMP, SYS_VADDR_TMP + PAGE_SIZE);
 }
 
 void pmap_copy_page(unsigned long src_paddr, unsigned long dst_paddr) {
-  // Map to kernel virtual memory
-  pmap_kenter(P2V(src_paddr), src_paddr, VM_PROT_READ);
-  pmap_kenter(P2V(dst_paddr), dst_paddr, VM_PROT_READ | VM_PROT_WRITE);
+  // Temporarily map to kernel virtual memory
+  pmap_kenter(SYS_VADDR_TMP, src_paddr, VM_PROT_READ);
+  pmap_kenter(SYS_VADDR_TMP2, dst_paddr, VM_PROT_READ | VM_PROT_WRITE);
+  pmap_flush();
 
   // Copy page
-  memcpy((void *)P2V(dst_paddr), (void *)P2V(src_paddr), PAGE_SIZE);
+  memcpy((void *)SYS_VADDR_TMP2, (void *)SYS_VADDR_TMP, PAGE_SIZE);
 
   // Unmap from kernel memory
-  pmap_kremove(P2V(src_paddr), P2V(src_paddr + PAGE_SIZE));
-  pmap_kremove(P2V(dst_paddr), P2V(dst_paddr + PAGE_SIZE));
+  pmap_kremove(SYS_VADDR_TMP, SYS_VADDR_TMP + PAGE_SIZE);
+  pmap_kremove(SYS_VADDR_TMP2, SYS_VADDR_TMP2 + PAGE_SIZE);
 }
 
 void pmap_init() {
-  kernel_pmap.pg_dir = sys_pg_dir;
   kernel_pmap.pg_dir_paddr = (void *)V2P(sys_pg_dir);
+  cur_pmap = &kernel_pmap;
+
+  // Recursive mapping of page directory to itself, allows access to page tables through virtual memory
+  sys_pg_dir[PTE_MAP_INDEX] = V2P(sys_pg_dir) | PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER;
+  pmap_flush();
+
+  // Set global pointers to page tables and directory through recursive page directory mapping
+  pte_map = (uint32_t (*)[1024])PTE_MAP;
+  pg_dir = (uint32_t *)pte_map[PTE_MAP_INDEX];
 
   // Unmap virtual memory before kernel
   pmap_remove(&kernel_pmap, SYS_VADDR, SYS_VADDR + 0xB8000);

@@ -23,7 +23,7 @@ unsigned long pmap_extract(struct pmap *pmap, unsigned long vaddr);
 void pmap_zero_page(unsigned long paddr);
 void pmap_copy_page(unsigned long src_paddr, unsigned long dst_paddr);
 
-void pmap_activate(const struct proc *p);
+void pmap_activate(struct proc *p);
 
 void pmap_flush(void);
 

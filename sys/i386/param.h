@@ -18,6 +18,11 @@
 
 #define SYS_VADDR 0x80000000
 #define SYS_VADDR_INDEX (SYS_VADDR >> 22)
+#define SYS_VADDR_TMP (SYS_VADDR + PAGE_SIZE)
+#define SYS_VADDR_TMP2 (SYS_VADDR + 2 * PAGE_SIZE)
+
+#define PTE_MAP 0xFFC00000
+#define PTE_MAP_INDEX (PTE_MAP >> 22)
 
 #define P2V(addr) ((unsigned long)(addr) + SYS_VADDR)
 #define V2P(addr) ((unsigned long)(addr) - SYS_VADDR)
