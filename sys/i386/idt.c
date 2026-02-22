@@ -92,8 +92,8 @@ void isr_handler(struct interrupt_frame *r) {
     printf(", error: %d\n", r->err_code);
     printf("EAX=%08x EBX=%08x ECX=%08x EDX=%08x\n", r->eax, r->ebx, r->ecx, r->edx);
     printf("ESP=%08x EBP=%08x ESI=%08x EDI=%08x\n", r->esp, r->ebp, r->esi, r->edi);
-    printf("DS=%04x ES=%04x FS=%04x GS=%04x\n", r->ds, r->ds, r->ds, r->ds);
-    printf("EIP=%08x CS=%04x EFLAGS=%08x usr=%x SS=%04x\n", r->eip, r->cs, r->eflags, r->user_esp, r->ss);
+    printf("CS=%04x DS=%04x ES=%04x FS=%04x GS=%04x\n", r->cs, r->ds, r->ds, r->ds, r->ds);
+    printf("EIP=%08x EFLAGS=%08x usr=%x SS=%04x\n", r->eip, r->eflags, r->user_esp, r->ss);
 
     if ((r->cs & 3) == 3) // User process crashed
       exit(-1);
