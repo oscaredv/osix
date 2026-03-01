@@ -81,13 +81,11 @@ void print_long(const char *base, const char *name, unsigned short ino) {
 }
 
 int ls(const char *name) {
-  int fd = open(name, O_RDONLY);
-  if (fd == -1)
-    return EXIT_FAILURE;
-
   struct stat st;
-  if (fstat(fd, &st) == -1)
+  if (stat(name, &st) == -1) {
+    perror(name);
     return EXIT_FAILURE;
+  }
 
   if ((st.st_mode & S_IFMT) == S_IFDIR) {
     if (!first)
@@ -95,6 +93,12 @@ int ls(const char *name) {
 
     first = 0;
     last_was_dir = 1;
+
+    int fd = open(name, O_RDONLY);
+    if (fd == -1) {
+      perror(name);
+      return EXIT_FAILURE;
+    }
 
     if (multiple)
       printf("%s:\n", name);
@@ -115,6 +119,7 @@ int ls(const char *name) {
         }
       }
     }
+    close(fd);
   } else {
     if (last_was_dir)
       printf("\n");
@@ -131,7 +136,6 @@ int ls(const char *name) {
       }
     }
   }
-  close(fd);
   return 0;
 }
 
@@ -182,7 +186,6 @@ int main(int argc, char **argv) {
   multiple = (argc - arg) > 1;
   while (arg < argc) {
     if (ls(argv[arg]) != 0) {
-      fprintf(stderr, "%s: Failed to open %s\n", argv[0], argv[arg]);
       ret = EXIT_FAILURE;
     }
     if (!long_format && !single_col && ret == EXIT_SUCCESS)

@@ -62,3 +62,5 @@ int setgroups(int ngroups, const gid_t *groups) { return syscall(SYS_setgroups, 
 int getgroups(int size, gid_t list[]) { return syscall(SYS_getgroups, size, (long)list); }
 
 int pipe(int fd[2]) { return syscall(SYS_pipe, (long)fd); }
+
+int creat(const char *filename, int mode) { return syscall(SYS_creat, (long)filename, mode); }

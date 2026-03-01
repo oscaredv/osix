@@ -25,7 +25,7 @@ int file_fd_alloc(struct proc *p, struct file *f) {
       return i;
     }
   }
-  return -1;
+  return -EMFILE;
 }
 
 struct file *file_alloc(void) {
@@ -41,7 +41,7 @@ struct file *file_alloc(void) {
 }
 
 void file_close(struct file *file) {
-  if(!file)
+  if (!file)
     return;
   if (file->type == FT_PIPE) {
     pipe_close(file);
@@ -99,13 +99,14 @@ void wdir(struct inode *dir, unsigned int inodeno, const char *filename) {
 
 int sys_unlink(const char *filepath) {
   char filename[PATH_MAX];
-  struct inode *parent = parenti(filepath, filename);
-  if (!parent) {
-    return -ENOENT;
+  struct inode *parent = NULL;
+  int error = parenti(filepath, filename, &parent);
+  if (error != 0) {
+    return error;
   }
 
   if ((parent->i_mode & S_IFMT) != S_IFDIR) {
-    return -ENOENT; // TODO: not dir
+    return -ENOTDIR;
   }
   struct dirent entry;
   long offset = 0;
@@ -136,23 +137,43 @@ int sys_unlink(const char *filepath) {
   return -ENOENT;
 }
 
-struct inode *creat(const char *filename, int mode) {
-  struct inode *inode = ialloc(mode);
-  if (inode == NULL)
-    panic("No free inode");
-
+int file_creat(const char *filename, int mode, struct inode **inodep) {
   char base[PATH_MAX];
-  struct inode *parent = parenti(filename, base);
+  struct inode *parent = NULL;
+  int error = parenti(filename, base, &parent);
+  if (error != 0)
+    return error;
+
   if (!parent)
     panic("wdir");
 
-  ilock(inode);
-  wdir(parent, inode->i_inodeno, base);
+  // Check write permission for parent directory
+  if (access(parent, IWRITE)) {
+    iput(parent);
+    return -EACCES;
+  }
 
-  inode->i_nlinks += 1;
-  iunlock(inode);
+  *inodep = ialloc(mode);
+  if (*inodep == NULL)
+    panic("No free inode");
+
+  ilock(*inodep);
+  wdir(parent, (*inodep)->i_inodeno, base);
+
+  (*inodep)->i_nlinks += 1;
+  iunlock(*inodep);
   iput(parent);
-  return inode;
+  return 0;
+}
+
+int sys_creat(const char *filename, int mode) {
+  struct inode *inode;
+  int ret = file_creat(filename, mode, &inode);
+  if (ret != 0)
+    return ret;
+
+  iput(inode);
+  return 0;
 }
 
 int sys_open(const char *filename, int flags, int mode) {
@@ -164,15 +185,31 @@ int sys_open(const char *filename, int flags, int mode) {
     return -ENOMEM;
 
   file->flags |= flags;
-  file->inode = namei(filename);
+  int error = namei(filename, &file->inode);
+  if (error != 0) {
+    file_close(file);
+    return error;
+  }
 
   if (file->inode == NULL && flags & O_CREAT) {
-    file->inode = creat(filename, mode);
+    // TODO: permission to write
+    file_creat(filename, mode, &file->inode);
   }
 
   if (file->inode == NULL) {
     file_close(file);
     return -ENOENT;
+  }
+
+  int request_mode = IREAD;
+  if (flags & O_WRONLY)
+    request_mode = IWRITE;
+  else if (flags & O_RDWR || flags & O_APPEND || flags & O_CREAT || flags & O_TRUNC)
+    request_mode |= IWRITE;
+
+  if (access(file->inode, request_mode)) {
+    file_close(file);
+    return -EACCES;
   }
 
   if (flags & O_TRUNC) {
@@ -246,9 +283,11 @@ ssize_t file_write(struct file *file, const void *buf, size_t nbytes) {
 }
 
 int stat(const char *path, struct stat *st) {
-  struct inode *inode = namei(path);
-  if (inode == NULL)
-    return -1;
+  struct inode *inode = NULL;
+
+  int error = namei(path, &inode);
+  if (error != 0)
+    return error;
 
   ilock(inode);
   istat(inode, st);
@@ -258,7 +297,7 @@ int stat(const char *path, struct stat *st) {
 
 int fstat(int fd, struct stat *st) {
   if (fd < 0 || fd > NFILE || cur_proc->ofile[fd] == NULL)
-    return -1;
+    return -EBADF;
 
   struct inode *inode = cur_proc->ofile[fd]->inode;
   ilock(inode);

@@ -17,6 +17,7 @@ int sys_unlink(const char *filepath);
 int sys_setgroups(int ngroups, const gid_t *gidset);
 int sys_getgroups(int size, gid_t list[]);
 int sys_pipe(int fd[2]);
+int sys_creat(const char *filename, int mode);
 
 void sysent(struct interrupt_frame *r) {
   cur_proc->context = r;
@@ -114,6 +115,9 @@ void sysent(struct interrupt_frame *r) {
     break;
   case SYS_pipe:
     r->eax = sys_pipe((int *)r->ebx);
+    break;
+  case SYS_creat:
+    r->eax = sys_creat((const char *)r->ebx, r->ecx);
     break;
   default:
     panic("Unhandled syscall!");

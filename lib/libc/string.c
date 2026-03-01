@@ -3,27 +3,27 @@
 #include <string.h>
 
 const char *const sys_errlist[] = {
-    "No error: 0", // ENOERROR
-    NULL,
+    "No error: 0",               // ENOERROR
+    "Operation not permitted",   // EPERM
     "No such file or directory", // ENOENT
     "No such process",           // ESRCH
     "Interrupted system call",   // EINTR
+    "Input/output error",        // EIO
     NULL,
     NULL,
     NULL,
-    NULL,
-    "Bad file descriptor", // EBADF
-    "No child processes",  // ECHILD
-    NULL,
+    "Bad file descriptor",    // EBADF
+    "No child processes",     // ECHILD
+    "Try again",              // EAGAIN
     "Cannot allocate memory", // ENOMEM
+    "Permission denied",      // EACCES
+    "Bad address",            // EFAULT
     NULL,
     NULL,
+    "File exists", // EEXIST
     NULL,
-    NULL,
-    NULL,
-    NULL,
-    "No such device", // ENODEV
-    NULL,
+    "No such device",  // ENODEV
+    "Not a directory", // ENOTDIR
     NULL,
     "Invalid argument", // EINVAL
     NULL,

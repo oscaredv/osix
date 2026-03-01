@@ -10,5 +10,6 @@
 
 int open(const char *filename, int flags, ...);
 int close(int fd);
+int creat(const char *filename, int mode);
 
 #endif

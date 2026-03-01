@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     } else {
       int fd = open(argv[i], O_RDONLY);
       if (fd == -1) {
-        fprintf(stderr, "%s: %s: No such file or directory\n", argv[0], argv[i]);
+        perror("open");
         ret = EXIT_FAILURE;
       } else {
         struct stat st;

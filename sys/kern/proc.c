@@ -193,8 +193,9 @@ void proc_create(const char *path) {
   pmap_enter(&p->pmap, USER_USTACK, ustack, VM_PROT_ALL);
 
   // Find program
-  struct inode *inode = namei(path);
-  if (inode == NULL)
+  struct inode *inode = NULL;
+  int error = namei(path, &inode);
+  if (error != 0)
     panic("init not found!");
 
   ilock(inode);
@@ -209,7 +210,9 @@ void proc_create(const char *path) {
   proc_init_user_context(p, user_esp);
 
   // Set current working directory
-  p->cwd = namei("/");
+  error = namei("/", &p->cwd);
+  if (error != 0)
+    panic("init not found!");
 
   p->state = STATE_RUNNING;
 }

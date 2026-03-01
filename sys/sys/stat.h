@@ -30,6 +30,10 @@
 #define S_IWOTH 00002 // Other write
 #define S_IXOTH 00001 // Other execute
 
+#define IEXEC 00001  // execute/search permission
+#define IWRITE 00002 // write permission
+#define IREAD 00004  // read permission
+
 struct stat {
   dev_t st_dev;
   unsigned int st_ino;

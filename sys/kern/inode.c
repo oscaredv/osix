@@ -175,7 +175,7 @@ ssize_t readi(struct inode *inode, void *dst, long offset, size_t nbytes) {
   }
 
   if (offset > inode->i_size)
-    return -1;
+    return -EINVAL;
 
   // TODO: Check error flag from bread()
   long end = offset + nbytes;
@@ -212,8 +212,7 @@ ssize_t writei(struct inode *inode, const void *src, unsigned int offset, size_t
   if ((inode->i_mode & S_IFMT) == S_IFCHR) {
     dev_t cdev = inode->i_direct[0];
     if (major(cdev) >= num_cdev || cdevsw[major(cdev)].write == NULL) {
-      // TODO: ENODEV
-      return -1;
+      return -ENODEV;
     }
     return cdevsw[major(cdev)].write(cdev, src, nbytes);
   } else if ((inode->i_mode & S_IFMT) == S_IFBLK) {
@@ -345,16 +344,30 @@ struct inode *idup(struct inode *inode) {
   return inode;
 }
 
-struct inode *parenti(const char *path, char *name) {
-  struct inode *inode = NULL;
+int access(struct inode *inode, int mode) {
+  // For root or kernel access, allow all permissions
+  if (cur_proc == NULL || cur_proc->uid == 0)
+    return 0;
+
+  if (inode->i_uid == cur_proc->uid && (inode->i_mode & mode << 6)) // Owner
+    return 0;
+  if (inode->i_gid == cur_proc->gid && (inode->i_mode & mode << 3)) // Group
+    return 0;
+  if (inode->i_mode & mode) // Others
+    return 0;
+
+  return 1;
+}
+
+int parenti(const char *path, char *name, struct inode **inodep) {
   const char *p = path;
 
   if (*p == '/') {
-    inode = iget(ROOT_DEV, ROOT_INODE);
+    *inodep = iget(ROOT_DEV, ROOT_INODE);
     while (*p == '/')
       p++;
   } else {
-    inode = idup(cur_proc->cwd);
+    *inodep = idup(cur_proc->cwd);
   }
 
   while (*p != 0) {
@@ -362,22 +375,28 @@ struct inode *parenti(const char *path, char *name) {
     while (*e != '/' && *e != 0)
       e++;
 
-    ilock(inode);
+    ilock(*inodep);
     // TODO: Check if inode is dir!
-    unsigned int ndirent = inode->i_size / sizeof(struct dirent);
+
+    if (access(*inodep, IEXEC)) {
+      iunlockput(*inodep);
+      return -EACCES;
+    }
+
+    unsigned int ndirent = (*inodep)->i_size / sizeof(struct dirent);
     struct dirent dir[ndirent];
     // TODO: check return length
-    if (readi(inode, &dir, 0, inode->i_size) != inode->i_size) {
-      iunlockput(inode);
-      return NULL;
+    if (readi(*inodep, &dir, 0, (*inodep)->i_size) != (*inodep)->i_size) {
+      iunlockput(*inodep);
+      return -EIO;
     }
-    iunlock(inode);
+    iunlock(*inodep);
 
     struct inode *next_inode = NULL;
     for (unsigned d = 0; d < ndirent; d++) {
       int len = strlen(dir[d].d_name);
       if (dir[d].d_ino != 0 && len == (e - p) && strncmp(dir[d].d_name, p, len) == 0) {
-        next_inode = iget(inode->dev, dir[d].d_ino);
+        next_inode = iget((*inodep)->dev, dir[d].d_ino);
         break;
       }
     }
@@ -393,38 +412,42 @@ struct inode *parenti(const char *path, char *name) {
         if (next_inode)
           iput(next_inode);
 
-        return inode;
+        return 0;
       }
     }
 
     if (next_inode == NULL) {
-      iput(inode);
-      return NULL;
+      iput(*inodep);
+      return -ENOENT;
     }
 
-    iput(inode);
-    inode = next_inode;
+    iput(*inodep);
+    *inodep = next_inode;
 
     p = e;
     while (*p == '/')
       p++;
   }
 
-  return inode;
+  return 0;
 }
 
-struct inode *namei(const char *path) { return parenti(path, NULL); }
+int namei(const char *path, struct inode **inodep) { return parenti(path, NULL, inodep); }
 
 int chdir(const char *path) {
   if (path == NULL)
-    return -1;
+    return -EINVAL;
 
-  struct inode *cwd = namei(path);
+  struct inode *cwd = NULL;
+  int error = namei(path, &cwd);
+  if (error != 0)
+    return error;
+
   if (cwd == NULL)
-    return -1;
+    return -ENOENT;
 
   if ((cwd->i_mode & S_IFMT) != S_IFDIR)
-    return -1;
+    return -ENOTDIR;
 
   if (cur_proc->cwd != NULL)
     iput(cur_proc->cwd);

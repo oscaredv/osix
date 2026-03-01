@@ -8,13 +8,18 @@ extern int errno;
 #define ENOENT 2
 #define ESRCH 3
 #define EINTR 4
+#define EIO 5
 #define EBADF 9
 #define ECHILD 10
 #define ENOMEM 12
+#define EACCES 13
 #define EFAULT 14
+#define EEXIST 17
 #define ENODEV 19
+#define ENOTDIR 20
 #define EINVAL 22
 #define ENFILE 23
 #define EMFILE 24
 #define ENOTTY 25
+
 #endif

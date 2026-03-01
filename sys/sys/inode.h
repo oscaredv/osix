@@ -35,8 +35,8 @@ struct inode *iget(dev_t dev, unsigned int inodeno);
 unsigned int bmap(struct inode *inode, unsigned int blockno, int flags);
 ssize_t readi(struct inode *inode, void *dst, long offset, size_t nbytes);
 ssize_t writei(struct inode *inode, const void *src, unsigned int offset, size_t nbytes);
-struct inode *namei(const char *path);
-struct inode *parenti(const char *path, char *name);
+int namei(const char *path, struct inode **inodep);
+int parenti(const char *path, char *name, struct inode **inodep);
 struct inode *idup(struct inode *inode);
 int ilock(struct inode *inode);
 void iunlock(struct inode *inode);
@@ -46,5 +46,6 @@ void istat(struct inode *inode, struct stat *st);
 void itrunc(struct inode *inode);
 struct inode *ialloc(int mode);
 void ifree(dev_t dev, unsigned int inodeno);
+int access(struct inode *inode, int mode);
 
 #endif
