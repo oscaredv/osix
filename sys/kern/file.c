@@ -166,16 +166,6 @@ int file_creat(const char *filename, int mode, struct inode **inodep) {
   return 0;
 }
 
-int sys_creat(const char *filename, int mode) {
-  struct inode *inode;
-  int ret = file_creat(filename, mode, &inode);
-  if (ret != 0)
-    return ret;
-
-  iput(inode);
-  return 0;
-}
-
 int sys_open(const char *filename, int flags, int mode) {
   if (*filename == 0)
     return -ENOENT;
@@ -186,14 +176,11 @@ int sys_open(const char *filename, int flags, int mode) {
 
   file->flags |= flags;
   int error = namei(filename, &file->inode);
-  if (error != 0) {
+  if (error == -ENOENT && flags & O_CREAT) {
+    file_creat(filename, mode, &file->inode);
+  } else if (error != 0) {
     file_close(file);
     return error;
-  }
-
-  if (file->inode == NULL && flags & O_CREAT) {
-    // TODO: permission to write
-    file_creat(filename, mode, &file->inode);
   }
 
   if (file->inode == NULL) {
@@ -222,6 +209,8 @@ int sys_open(const char *filename, int flags, int mode) {
 
   return file_fd_alloc(cur_proc, file);
 }
+
+int sys_creat(const char *filename, int mode) { return sys_open(filename, O_CREAT | O_WRONLY | O_TRUNC, mode); }
 
 struct file *file_dup(struct file *file) {
   ++file->ref_count;
