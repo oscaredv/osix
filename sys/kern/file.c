@@ -13,6 +13,7 @@
 #include <sys/syslimits.h>
 #include <sys/system.h>
 #include <unistd.h>
+#include <utime.h>
 
 struct file file[NFILE];
 
@@ -212,6 +213,25 @@ int sys_open(const char *filename, int flags, int mode) {
 
 int sys_creat(const char *filename, int mode) { return sys_open(filename, O_CREAT | O_WRONLY | O_TRUNC, mode); }
 
+int sys_utime(const char *filename, const struct utimbuf *times) {
+  struct inode *inode = NULL;
+  int error = namei(filename, &inode);
+  if (error != 0)
+    return error;
+
+  if (inode == NULL)
+    return -ENOENT;
+
+  ilock(inode);
+  if (times) {
+    inode->i_time = times->actime;
+  } else {
+    inode->i_time = time(NULL);
+  }
+  inode->i_flags |= I_UPDATED;
+  iunlockput(inode);
+  return 0;
+}
 struct file *file_dup(struct file *file) {
   ++file->ref_count;
   return file;

@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 struct stat;
+struct utimbuf;
 
 ssize_t write(int fd, const void *buf, size_t len) { return syscall(SYS_write, fd, (long)buf, len); }
 
@@ -64,3 +65,5 @@ int getgroups(int size, gid_t list[]) { return syscall(SYS_getgroups, size, (lon
 int pipe(int fd[2]) { return syscall(SYS_pipe, (long)fd); }
 
 int creat(const char *filename, int mode) { return syscall(SYS_creat, (long)filename, mode); }
+
+int utime(const char *filename, const struct utimbuf *times) { return syscall(SYS_utime, (long)filename, (long)times); }

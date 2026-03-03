@@ -11,6 +11,8 @@
 #include <time.h>
 #include <unistd.h>
 
+struct utimbuf;
+
 int sys_open(const char *filename, int flags, int mode);
 int sys_exec(const char *pathname, const char *argv[], const char *env[]);
 int sys_unlink(const char *filepath);
@@ -18,6 +20,7 @@ int sys_setgroups(int ngroups, const gid_t *gidset);
 int sys_getgroups(int size, gid_t list[]);
 int sys_pipe(int fd[2]);
 int sys_creat(const char *filename, int mode);
+int sys_utime(const char *filename, const struct utimbuf *times);
 
 void sysent(struct interrupt_frame *r) {
   cur_proc->context = r;
@@ -118,6 +121,9 @@ void sysent(struct interrupt_frame *r) {
     break;
   case SYS_creat:
     r->eax = sys_creat((const char *)r->ebx, r->ecx);
+    break;
+  case SYS_utime:
+    r->eax = sys_utime((const char *)r->ebx, (const struct utimbuf *)r->ecx);
     break;
   default:
     panic("Unhandled syscall!");

@@ -33,5 +33,6 @@
 #define SYS_dup2 30
 #define SYS_pipe 31
 #define SYS_creat 32
+#define SYS_utime 33
 
 #endif
