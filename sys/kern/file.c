@@ -107,6 +107,7 @@ int sys_unlink(const char *filepath) {
   }
 
   if ((parent->i_mode & S_IFMT) != S_IFDIR) {
+    iput(parent);
     return -ENOTDIR;
   }
   struct dirent entry;
@@ -118,7 +119,6 @@ int sys_unlink(const char *filepath) {
       entry.d_ino = 0;
       *entry.d_name = 0;
       writei(parent, &entry, offset, sizeof(entry));
-      iunlockput(parent);
 
       struct inode *inode = iget(parent->dev, inodeno);
       if (!inode)
@@ -130,12 +130,14 @@ int sys_unlink(const char *filepath) {
 
       --inode->i_nlinks;
       inode->i_flags |= I_DIRTY;
+      iunlockput(parent);
       iupdate(inode);
       iunlockput(inode);
       return 0;
     }
     offset += sizeof(entry);
   }
+  iunlockput(parent);
   return -ENOENT;
 }
 
