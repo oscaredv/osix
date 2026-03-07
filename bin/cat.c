@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
     } else {
       int fd = open(argv[i], O_RDONLY);
       if (fd == -1) {
-        perror("open");
+        perror(argv[i]);
         ret = EXIT_FAILURE;
       } else {
         struct stat st;

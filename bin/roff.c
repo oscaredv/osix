@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
   if (argc > 1) {
     fp = fopen(argv[1], "r");
     if (!fp) {
-      perror("Error opening file");
+      perror(argv[1]);
       return EXIT_FAILURE;
     }
   }
@@ -232,5 +232,5 @@ int main(int argc, char *argv[]) {
   if (fp != stdin) {
     fclose(fp);
   }
-  return 0;
+  return EXIT_SUCCESS;
 }

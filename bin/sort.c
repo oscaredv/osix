@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
   for (int i = 1; i < argc; i++) {
     FILE *f = fopen(argv[i], "r");
     if (!f) {
-      perror("Error opening file");
+      perror(argv[i]);
       ret = EXIT_FAILURE;
     } else {
       sort(f);
