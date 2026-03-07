@@ -44,7 +44,10 @@ struct buf *getblk(dev_t dev, unsigned int block_no) {
   }
 
   struct buf *buf = bfreelist.next;
-  // TODO: if dirty, write first
+  // If dirty, write first
+  if (buf->flags & B_DIRTY) {
+    bwrite(buf);
+  }
 
   // Initialize
   buf->dev = dev;
@@ -63,7 +66,10 @@ struct buf *bread(dev_t dev, unsigned int block_no) {
   struct buf *buf = getblk(dev, block_no);
 
   if ((buf->flags & B_DONE) == 0) {
-    buf->flags |= B_READ;
+    buf->flags &= ~B_ERROR;
+
+    if (major(dev) >= num_bdev || bdevsw[major(dev)].read == NULL)
+      panic("bread: no read function");
 
     bdevsw[major(dev)].read(buf);
   }
@@ -71,7 +77,14 @@ struct buf *bread(dev_t dev, unsigned int block_no) {
   return buf;
 }
 
-void bwrite(struct buf *buf) { buf->flags |= B_DIRTY; }
+void bwrite(struct buf *buf) {
+  buf->flags &= ~(B_DIRTY | B_DONE | B_ERROR);
+
+  if (major(buf->dev) >= num_bdev || bdevsw[major(buf->dev)].write == NULL)
+    panic("bwrite: no write function");
+
+  bdevsw[major(buf->dev)].write(buf);
+}
 
 void brelse(struct buf *buf) {
   if (buf->flags & B_WANTED) {
@@ -83,12 +96,19 @@ void brelse(struct buf *buf) {
   if (buf->ref_count == 0)
     panic("bad ref_count");
 
-  if (--buf->ref_count == 0 && (buf->flags & B_DIRTY) == 0) {
-    // Add to end of free list
-    buf->next = &bfreelist;
-    buf->prev = bfreelist.prev;
-    bfreelist.prev->next = buf;
-    bfreelist.prev = buf;
+  if (--buf->ref_count == 0) {
+    // Write dirty buffer before adding to free list
+    if (buf->flags & B_DIRTY) {
+      bwrite(buf);
+    }
+
+    if ((buf->flags & B_DIRTY) == 0) {
+      // Add to end of free list
+      buf->next = &bfreelist;
+      buf->prev = bfreelist.prev;
+      bfreelist.prev->next = buf;
+      bfreelist.prev = buf;
+    }
   }
 }
 
@@ -99,7 +119,7 @@ void iodone(struct buf *buf) {
     // Wake up process(es) waiting for this buffer
     wakeup(buf);
   }
-  buf->flags &= ~(B_WANTED | B_READ);
+  buf->flags &= ~B_WANTED;
 }
 
 unsigned int balloc(dev_t dev) {
@@ -149,7 +169,7 @@ void bfree(dev_t dev, unsigned int block_no) {
   uint8_t *zmap = buf->data;
 
   if ((zmap[index] & (1 << bit)) == 0)
-    panic("bfree: not allocated");
+    panic("bfree: block not allocated");
 
   zmap[index] &= ~(1 << bit);
   bwrite(buf);
