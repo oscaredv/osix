@@ -93,7 +93,7 @@ void wdir(struct inode *dir, unsigned int inodeno, const char *filename) {
   long end = offset + sizeof(entry);
   if (end > dir->i_size) {
     dir->i_size = end;
-    dir->i_flags |= I_UPDATED;
+    dir->i_flags |= I_DIRTY;
   }
   iunlock(dir);
 }
@@ -129,7 +129,8 @@ int sys_unlink(const char *filepath) {
         panic("unlink: nlinks==0");
 
       --inode->i_nlinks;
-      inode->i_flags |= I_UPDATED;
+      inode->i_flags |= I_DIRTY;
+      iupdate(inode);
       iunlockput(inode);
       return 0;
     }
@@ -228,7 +229,7 @@ int sys_utime(const char *filename, const struct utimbuf *times) {
   } else {
     inode->i_time = time(NULL);
   }
-  inode->i_flags |= I_UPDATED;
+  inode->i_flags |= I_DIRTY;
   iunlockput(inode);
   return 0;
 }

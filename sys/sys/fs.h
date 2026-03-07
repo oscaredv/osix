@@ -11,6 +11,8 @@
 #define FS_VALID 0x0001
 #define FS_ERROR 0x0002
 
+#define FIRST_BLK 2
+
 // Filesystem superblock
 struct fs {
   uint16_t ninodes;

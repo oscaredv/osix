@@ -25,6 +25,12 @@ void inode_init() {
   }
 }
 
+unsigned int inode_block(unsigned int inodeno) {
+  return FIRST_BLK + super.imap_blocks + super.zmap_blocks + (inodeno - 1) / (BLOCK_SIZE / sizeof(struct minix_inode));
+}
+
+unsigned int inode_offset(unsigned int inodeno) { return (inodeno - 1) % (BLOCK_SIZE / sizeof(struct minix_inode)); }
+
 struct inode *iget(dev_t dev, unsigned int inodeno) {
   // Is inode already in cache?
   int i = 0;
@@ -52,7 +58,7 @@ struct inode *iget(dev_t dev, unsigned int inodeno) {
   // Find first unused entry
   // TODO: inode free list
   for (int i = 0; i < NUM_INODES; i++) {
-    if (inodes[i].i_refcount == 0 && (inodes[i].i_flags & I_UPDATED) == 0) {
+    if (inodes[i].i_refcount == 0 && (inodes[i].i_flags & I_DIRTY) == 0) {
       inode = &inodes[i];
       break;
     }
@@ -68,19 +74,11 @@ struct inode *iget(dev_t dev, unsigned int inodeno) {
   inode->i_flags = I_LOCK;
 
   // Load inode from disk
-  unsigned int inode_index = inodeno - 1;
-  unsigned int block_no = 2 + super.imap_blocks + super.zmap_blocks;
-  unsigned int inodes_per_block = BLOCK_SIZE / sizeof(struct minix_inode);
-  unsigned int block_offset = inode_index / inodes_per_block;
-
-  block_no += block_offset;
-  inode_index -= inodes_per_block * block_offset;
-
-  struct buf *buf = bread(dev, block_no);
-  struct minix_inode *dinode = buf->data;
-
   // TODO: check if inode_index is large, and we point outside of buf
-  dinode += inode_index;
+  unsigned int block_no = inode_block(inode->i_inodeno);
+  unsigned int inode_index = inode_offset(inode->i_inodeno);
+  struct buf *buf = bread(dev, block_no);
+  struct minix_inode *dinode = (struct minix_inode *)buf->data + inode_index;
 
   // Copy from disk inode
   inode->i_mode = dinode->di_mode;
@@ -109,7 +107,7 @@ unsigned int bmap(struct inode *inode, unsigned int index, int flags) {
     // Direct zone
     if (flags & B_WRITE && inode->i_direct[index] == 0) {
       inode->i_direct[index] = balloc(inode->dev);
-      inode->i_flags |= I_UPDATED;
+      inode->i_flags |= I_DIRTY;
     }
 
     block_no = inode->i_direct[index];
@@ -117,7 +115,7 @@ unsigned int bmap(struct inode *inode, unsigned int index, int flags) {
     // Indirect zone
     if (flags & B_WRITE && inode->i_indirect == 0) {
       inode->i_indirect = balloc(inode->dev);
-      inode->i_flags |= I_UPDATED;
+      inode->i_flags |= I_DIRTY;
     }
 
     if (inode->i_indirect) {
@@ -245,7 +243,7 @@ ssize_t writei(struct inode *inode, const void *src, unsigned int offset, size_t
     long size = orig_offset + nbytes;
     if (size > inode->i_size) {
       inode->i_size = size;
-      inode->i_flags |= I_UPDATED;
+      inode->i_flags |= I_DIRTY;
     }
   }
 
@@ -287,10 +285,29 @@ void iunlockput(struct inode *inode) {
 }
 
 void iupdate(struct inode *inode) {
-  if (inode->i_flags & I_UPDATED) {
-    // TODO: update dinode!
-    printf("inode %d --> dinode %d\n", inode->i_inodeno, inode->i_inodeno);
+  if (!(inode->i_flags & I_DIRTY))
+    return;
+
+  unsigned int block_no = inode_block(inode->i_inodeno);
+  unsigned int inode_index = inode_offset(inode->i_inodeno);
+  struct buf *buf = bread(inode->dev, block_no);
+  struct minix_inode *dinode = (struct minix_inode *)buf->data + inode_index;
+
+  dinode->di_mode = inode->i_mode;
+  dinode->di_nlinks = inode->i_nlinks;
+  dinode->di_uid = inode->i_uid;
+  dinode->di_gid = inode->i_gid;
+  dinode->di_time = inode->i_time;
+  dinode->di_size = inode->i_size;
+  for (int b = 0; b < NDIRECT; b++) {
+    dinode->di_zone[b] = inode->i_direct[b];
   }
+  dinode->di_indirect = inode->i_indirect;
+  dinode->di_dblindirect = inode->i_dblindirect;
+  inode->i_flags &= ~I_DIRTY;
+
+  bwrite(buf);
+  brelse(buf);
 }
 
 void itrunc(struct inode *inode) {
@@ -319,22 +336,21 @@ void itrunc(struct inode *inode) {
   }
 
   inode->i_size = 0;
-  inode->i_flags |= I_UPDATED;
-  // iupdate(inode);
+  inode->i_flags |= I_DIRTY;
+  iupdate(inode);
 }
 
 void iput(struct inode *inode) {
   if (inode == NULL || inode->i_refcount == 0 || (inode->i_flags & I_LOCK) != 0)
     panic("iput");
 
-  if (--inode->i_refcount == 0) {
-    if (inode->i_nlinks == 0) {
-      ilock(inode);
-      itrunc(inode);
-      iunlock(inode);
-      ifree(inode->dev, inode->i_inodeno);
-    }
+  if (--inode->i_refcount == 0 && inode->i_nlinks == 0) {
+    ilock(inode);
+    itrunc(inode);
+    iunlock(inode);
+    ifree(inode->dev, inode->i_inodeno);
 
+    inode->i_flags |= I_DIRTY;
     iupdate(inode);
   }
 }
@@ -498,12 +514,12 @@ struct inode *ialloc(int mode) {
             inode->i_time = time(NULL);
             inode->i_nlinks = 0;
             inode->i_size = 0;
-            inode->i_uid = 0; // TODO: cur_proc->uid
-            inode->i_gid = 0; // TODO: cur_proc->gid
+            inode->i_uid = cur_proc->uid;
+            inode->i_gid = cur_proc->gid;
             memset(&inode->i_direct, 0, sizeof(inode->i_direct));
             memset(&inode->i_indirect, 0, sizeof(inode->i_indirect));
             memset(&inode->i_dblindirect, 0, sizeof(inode->i_dblindirect));
-            inode->i_flags |= I_UPDATED;
+            inode->i_flags |= I_DIRTY;
             return inode;
           }
           ++inode_no;

@@ -6,7 +6,7 @@
 
 #define I_LOCK 1    // inode is locked
 #define I_WANTED 2  // wakeup() must be called on unlock, some other process wants to lock
-#define I_UPDATED 4 // inode has been updated
+#define I_DIRTY 4 // inode has been updated
 
 #define NDIRECT 7
 #define NINDIRECT 512
@@ -42,6 +42,7 @@ int ilock(struct inode *inode);
 void iunlock(struct inode *inode);
 void iunlockput(struct inode *inode);
 void iput(struct inode *inode);
+void iupdate(struct inode *inode);
 void istat(struct inode *inode, struct stat *st);
 void itrunc(struct inode *inode);
 struct inode *ialloc(int mode);
