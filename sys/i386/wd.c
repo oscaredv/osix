@@ -21,38 +21,45 @@ typedef struct {
   uint16_t port;
   uint16_t control_port;
   uint32_t blocks;
-  struct buf *buf;
+  struct buf *rdbuf;
+  struct buf *wrbuf;
   part_t part[4];
 } wd_t;
 
 wd_t wd_devsw[IDE_MAX_DEV];
 
+void wd_status(uint8_t status) {
+  printf("wd_intr: status=0x%x", status);
+
+  if (status & IDE_STAT_ERR)
+    printf(" ERR");
+  if (status & IDE_STAT_DRQ)
+    printf(" DRQ");
+  if (status & IDE_STAT_RDY)
+    printf(" RDY");
+  if (status & IDE_STAT_BSY)
+    printf(" BSY");
+  printf("\n");
+}
+
 void wd_intr(wd_t *wd) {
   uint8_t status = inb(IDE_REG_STAT(wd->port));
-  // printf("wd_irq status=0x%x", status);
-
-  // if (status & IDE_STAT_ERR)
-  //   printf(" ERR");
-  // if (status & IDE_STAT_DRQ)
-  //   printf(" DRQ");
-  // if (status & IDE_STAT_RDY)
-  //   printf(" RDY");
-  // if (status & IDE_STAT_BSY)
-  //   printf(" BSY");
-  //  printf("\n");
+  // wd_status(status);
 
   // Data ready?
-  if (status & IDE_STAT_DRQ && wd->buf != NULL) {
-    uint16_t *dst = wd->buf->data;
+  if (status & IDE_STAT_RDY && status & IDE_STAT_DRQ && wd->rdbuf != NULL) {
+    uint16_t *dst = wd->rdbuf->data;
     for (int i = 0; i < BLOCK_SIZE / 2; i++) {
-      // wd->buf->d.u16[i] = inw(IDE_REG_DATA(wd->port));
       dst[i] = inw(IDE_REG_DATA(wd->port));
     }
-    iodone(wd->buf);
+    iodone(wd->rdbuf);
 
-    wd->buf = NULL;
+    wd->rdbuf = NULL;
+    wakeup(wd_intr);
+  } else if (status & IDE_STAT_RDY && wd->wrbuf != NULL) {
+    iodone(wd->wrbuf);
+    wd->wrbuf = NULL;
   }
-  wakeup(wd_intr);
 }
 
 void wd_intr0() {
@@ -189,7 +196,7 @@ void wd_read(struct buf *buf) {
     ;
 
   // Store data in this buffer
-  wd->buf = buf;
+  wd->rdbuf = buf;
 
   outb(2, IDE_REG_SECTOR_COUNT(wd->port));
   outb(sector & 0xFF, IDE_REG_LBA_LO(wd->port));
@@ -200,12 +207,12 @@ void wd_read(struct buf *buf) {
 
   if (cur_proc != NULL) {
     // Sleep until I/O is done
-    while (wd->buf != NULL) {
+    while (wd->rdbuf != NULL) {
       sleep(wd_intr);
     }
   } else {
     // If I/O was initiated by the kernel, sleep()/wakeup() will not work - buzy wait instead
-    while (wd->buf != NULL) {
+    while (wd->rdbuf != NULL) {
       asm("sti");
       asm("hlt");
       asm("cli");
@@ -214,6 +221,48 @@ void wd_read(struct buf *buf) {
 }
 
 void wd_write(struct buf *buf) {
-  (void)buf;
-  printf("wd_write()\n");
+  // printf("wd_write(%d)\n", buf->block_no);
+  unsigned int sector = buf->block_no * 2;
+
+  uint8_t drive_no = minor(buf->dev) >> 4;
+  if (drive_no >= IDE_MAX_DEV || wd_devsw[drive_no].blocks == 0) {
+    buf->flags |= B_ERROR;
+    iodone(buf);
+    return;
+  }
+
+  wd_t *wd = &wd_devsw[drive_no];
+  uint8_t part_no = minor(buf->dev) & 0x0F;
+  if (part_no > 0) {
+    if (part_no > 4 || wd_devsw[drive_no].part[part_no - 1].part_type == 0) {
+      buf->flags |= B_ERROR;
+      iodone(buf);
+      return;
+    }
+    part_t *part = &wd->part[part_no - 1];
+    sector += part->offset;
+  }
+
+  // Busy wait until drive is ready
+  while (inb(IDE_REG_STAT(wd->port)) & IDE_STAT_BSY)
+    ;
+
+  wd->wrbuf = buf;
+
+  outb(2, IDE_REG_SECTOR_COUNT(wd->port));
+  outb(sector & 0xFF, IDE_REG_LBA_LO(wd->port));
+  outb((sector >> 8) & 0xFF, IDE_REG_LBA_MID(wd->port));
+  outb((sector >> 16) & 0xFF, IDE_REG_LBA_HI(wd->port));
+  outb(wd->drive | ((sector >> 24) & 0x0F), IDE_REG_DRIVE(wd->port));
+  outb(IDE_CMD_WRITE_MULTIPLE, IDE_REG_CMD(wd->port));
+
+  // Wait until drive is ready for data
+  while (inb(IDE_REG_STAT(wd->port)) & IDE_STAT_BSY)
+    ;
+
+  // Write data to controller - the interrupt handler will call iodone() when the data is written
+  uint16_t *src = buf->data;
+  for (int i = 0; i < BLOCK_SIZE / 2; i++) {
+    outw(src[i], IDE_REG_DATA(wd->port));
+  }
 }
