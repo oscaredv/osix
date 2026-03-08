@@ -105,11 +105,15 @@ int sys_unlink(const char *filepath) {
   if (error != 0) {
     return error;
   }
-
   if ((parent->i_mode & S_IFMT) != S_IFDIR) {
     iput(parent);
     return -ENOTDIR;
   }
+  if (access(parent, IWRITE)) {
+    iput(parent);
+    return -EACCES;
+  }
+
   struct dirent entry;
   long offset = 0;
   ilock(parent);

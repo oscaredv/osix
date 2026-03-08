@@ -361,6 +361,9 @@ struct inode *idup(struct inode *inode) {
 }
 
 int access(struct inode *inode, int mode) {
+  if (inode == NULL)
+    return -1;
+
   // For root or kernel access, allow all permissions
   if (cur_proc == NULL || cur_proc->uid == 0)
     return 0;
@@ -372,7 +375,7 @@ int access(struct inode *inode, int mode) {
   if (inode->i_mode & mode) // Others
     return 0;
 
-  return 1;
+  return -1;
 }
 
 int parenti(const char *path, char *name, struct inode **inodep) {
