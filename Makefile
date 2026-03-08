@@ -24,6 +24,7 @@ clean:
 mount:
 	sudo modprobe nbd max_part=8
 	sudo qemu-nbd --connect=/dev/nbd0 wd0.qcow2
+	sleep .3
 	sudo mount /dev/nbd0p1 /mnt
 
 .PHONY: umount
@@ -71,12 +72,17 @@ isoserial: all
 	$(MAKE) -C sys iso
 	qemu-system-i386 -nographic -cdrom sys/obj/osix.iso -boot d $(QEMUFLAGS)
 
-.PHONY: wd
-wd: wd0.qcow2
+.PHONY: wd0
+wd0: wd0.qcow2
 
 %.qcow2:
 	qemu-img create -f qcow2 $@ 64M
-
+	sudo qemu-nbd --connect=/dev/nbd0 $@
+	sleep .3
+	printf "o\nn\np\n1\n\n\nt\n81\nw\n" | sudo fdisk /dev/nbd0
+	sudo partprobe /dev/nbd0
+	sudo mkfs.minix /dev/nbd0p1
+	sudo qemu-nbd --disconnect /dev/nbd0
 
 IMG_ALL=$(subst obj/,/mnt/,$(wildcard obj/* obj/*/* obj/*/*/* obj/*/*/*/*))
 IMG_DIRS=$(abspath $(sort $(dir $(IMG_ALL))))
