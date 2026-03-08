@@ -108,22 +108,22 @@ install: all mount $(IMG_DEVS) $(IMG_FILES) /mnt/usr/oed /mnt/tmp umount
 	@sudo mkdir -p /mnt/dev
 
 /mnt/dev/tty0: /mnt/dev
-	sudo mknod -m=660 $@ c 3 0
+	[ -e $@ ] || sudo mknod -m=660 $@ c 3 0
 
 /mnt/dev/tty1: /mnt/dev
-	sudo mknod -m=660 $@ c 3 1
+	[ -e $@ ] || sudo mknod -m=660 $@ c 3 1
 
 /mnt/dev/null: /mnt/dev
-	sudo mknod -m=666 $@ c 0 0
+	[ -e $@ ] || sudo mknod -m=666 $@ c 0 0
 
 /mnt/dev/zero: /mnt/dev
-	sudo mknod -m=666 $@ c 2 0
+	[ -e $@ ] || sudo mknod -m=666 $@ c 2 0
 
 /mnt/dev/console: /mnt/dev
-	sudo mknod $@ c 1 0
+	[ -e $@ ] || sudo mknod $@ c 1 0
 
 /mnt/dev/wd0: /mnt/dev
-	sudo mknod $@ b 0 0
+	[ -e $@ ] || sudo mknod $@ b 0 0
 
 /mnt/dev/wd0p1: /mnt/dev
-	sudo mknod $@ b 0 1
+	[ -e $@ ] || sudo mknod $@ b 0 1
