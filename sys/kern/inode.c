@@ -462,11 +462,15 @@ int chdir(const char *path) {
   if (error != 0)
     return error;
 
-  if (cwd == NULL)
-    return -ENOENT;
+  if (access(cwd, IEXEC)) {
+    iput(cwd);
+    return -EACCES;
+  }
 
-  if ((cwd->i_mode & S_IFMT) != S_IFDIR)
+  if ((cwd->i_mode & S_IFMT) != S_IFDIR) {
+    iput(cwd);
     return -ENOTDIR;
+  }
 
   if (cur_proc->cwd != NULL)
     iput(cur_proc->cwd);

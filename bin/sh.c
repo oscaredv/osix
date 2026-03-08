@@ -43,7 +43,7 @@ int internal_cmd(char *argv[]) {
 
   if (!strcmp(argv[0], "cd")) {
     if (chdir(argv[1]) == -1) {
-      fprintf(stderr, "cd: %s: Not a directory\n", argv[1]);
+      perror(argv[1]);
     }
     return 1;
   }
