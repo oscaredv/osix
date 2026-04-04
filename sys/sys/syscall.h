@@ -34,5 +34,6 @@
 #define SYS_pipe 31
 #define SYS_creat 32
 #define SYS_utime 33
+#define SYS_mkdir 34
 
 #endif

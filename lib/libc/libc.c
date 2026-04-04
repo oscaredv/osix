@@ -67,3 +67,5 @@ int pipe(int fd[2]) { return syscall(SYS_pipe, (long)fd); }
 int creat(const char *filename, int mode) { return syscall(SYS_creat, (long)filename, mode); }
 
 int utime(const char *filename, const struct utimbuf *times) { return syscall(SYS_utime, (long)filename, (long)times); }
+
+int mkdir(const char *pathname, int mode) { return syscall(SYS_mkdir, (long)pathname, mode); }

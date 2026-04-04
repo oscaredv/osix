@@ -169,6 +169,7 @@ int file_creat(const char *filename, int mode, struct inode **inodep) {
   wdir(parent, (*inodep)->i_inodeno, base);
 
   (*inodep)->i_nlinks += 1;
+  (*inodep)->i_flags |= I_DIRTY;
   iunlock(*inodep);
   iput(parent);
   return 0;
@@ -185,7 +186,7 @@ int sys_open(const char *filename, int flags, int mode) {
   file->flags |= flags;
   int error = namei(filename, &file->inode);
   if (error == -ENOENT && flags & O_CREAT) {
-    file_creat(filename, mode, &file->inode);
+    file_creat(filename, mode | S_IFREG, &file->inode);
   } else if (error != 0) {
     file_close(file);
     return error;
@@ -239,6 +240,33 @@ int sys_utime(const char *filename, const struct utimbuf *times) {
   iunlockput(inode);
   return 0;
 }
+
+int sys_mkdir(const char *pathname, int mode) {
+  if (access(cur_proc->cwd, IWRITE))
+    return -EACCES;
+
+  struct inode *inode = NULL;
+  int error = file_creat(pathname, mode | S_IFDIR, &inode);
+  if (error != 0)
+    return error;
+
+  //  Create "." and ".." entries
+  wdir(inode, inode->i_inodeno, ".");
+  inode->i_nlinks += 1;
+
+  struct inode *parent = idup(cur_proc->cwd);
+  wdir(inode, parent->i_inodeno, "..");
+  ilock(parent);
+  parent->i_nlinks += 1;
+  parent->i_flags |= I_DIRTY;
+  iunlockput(parent);
+
+  inode->i_flags |= I_DIRTY;
+  iput(inode);
+
+  return 0;
+}
+
 struct file *file_dup(struct file *file) {
   ++file->ref_count;
   return file;

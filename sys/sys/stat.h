@@ -52,4 +52,6 @@ struct stat {
 int stat(const char *path, struct stat *st);
 int fstat(int fd, struct stat *st);
 
+int mkdir(const char *pathname, int mode);
+
 #endif
