@@ -17,16 +17,17 @@ MAN1=$(addprefix $(MAN1DIR)/, $(wildcard *.1))
 MAN5=$(addprefix $(MAN5DIR)/, $(wildcard *.5))
 
 .PHONY: all
-all: ../include/sys ../include/$(MACHINE) $(BIN) $(FILES) $(MAN1) $(MAN5)
+all: ../include/sys ../include/machine $(BIN) $(FILES) $(MAN1) $(MAN5)
 
 ../include/sys:
-	cd ../include && ln -sf ../sys/sys sys
+	cd ../include && ln -snf ../sys/sys sys
 
-../include/$(MACHINE):
-	cd ../include && ln -sf ../sys/$(MACHINE) machine
+../include/machine:
+	cd ../include && ln -snf ../sys/$(MACHINE) machine
 
 clean:
 	$(RM) $(BIN) $(FILES)
+	$(RM) ../include/sys ../include/machine
 
 $(OBJDIR)/etc/%: %.c Makefile $(LIBDIR)/libc.a
 	@mkdir -p $(OBJDIR)/etc

@@ -1,3 +1,5 @@
 *.qcow2
 obj
 sys/obj
+include/machine
+include/sys
