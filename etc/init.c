@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
   dup(fd);
   dup(fd);
 
-  setenv("PATH", "/bin", 1);
+  setenv("PATH", "/bin:/usr/bin", 1);
 
   while (1) {
     single();

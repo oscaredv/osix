@@ -7,6 +7,7 @@ all: world kernel
 world:
 	$(MAKE) -C lib
 	$(MAKE) -C bin
+	$(MAKE) -C usr.bin
 	$(MAKE) -C etc
 
 .PHONY: kernel
@@ -17,6 +18,7 @@ kernel:
 clean:
 	$(MAKE) -C sys clean
 	$(MAKE) -C bin clean
+	$(MAKE) -C usr.bin clean
 	$(MAKE) -C lib clean
 	$(RM) -r $(OBJDIR)
 
