@@ -5,16 +5,21 @@
 #include <sys/inode.h>
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <sys/procinfo.h>
 #include <sys/syslimits.h>
 #include <sys/system.h>
 #include <vm/pmap.h>
 
 int sys_exec(const char *pathname, const char *argv[], const char *envp[]) {
   struct inode *inode = NULL;
-  int error = namei(pathname, &inode);
+  char command[PATH_MAX];
+  int error = nameiname(pathname, command, &inode);
   if (error != 0) {
     return error;
   }
+
+  strncpy(cur_proc->command, command, PROC_NAME_LEN - 1);
+  cur_proc->command[PROC_NAME_LEN - 1] = 0;
 
   // Allocate and initialize new user stack, and copy data to it before we replace the old user pages
   uintptr_t ustack = (uintptr_t)vmm_alloc_page();

@@ -5,6 +5,9 @@
 #define minor(x) (x & 0xFF)
 #define makedev(maj, min) (maj << 8 | min)
 
+// Process states
+enum procstate { STATE_NULL, STATE_IDLE, STATE_RUNNING, STATE_SLEEP, STATE_ZOMBIE };
+
 typedef short dev_t;
 typedef short pid_t;
 

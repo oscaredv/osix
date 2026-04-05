@@ -22,6 +22,8 @@ int sys_pipe(int fd[2]);
 int sys_creat(const char *filename, int mode);
 int sys_utime(const char *filename, const struct utimbuf *times);
 int sys_mkdir(const char *pathname, int mode);
+struct procinfo;
+int sys_getprocs(struct procinfo *buf, size_t *len);
 
 void sysent(struct interrupt_frame *r) {
   cur_proc->context = r;
@@ -128,6 +130,9 @@ void sysent(struct interrupt_frame *r) {
     break;
   case SYS_mkdir:
     r->eax = sys_mkdir((const char *)r->ebx, r->ecx);
+    break;
+  case SYS_getprocs:
+    r->eax = sys_getprocs((struct procinfo *)r->ebx, (size_t *)r->ecx);
     break;
   default:
     panic("Unhandled syscall!");

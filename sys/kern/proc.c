@@ -9,6 +9,8 @@
 #include <sys/inode.h>
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <sys/procinfo.h>
+#include <sys/syslimits.h>
 #include <sys/system.h>
 #include <vm/pmap.h>
 
@@ -193,10 +195,14 @@ void proc_create(const char *path) {
   pmap_enter(&p->pmap, USER_USTACK, ustack, VM_PROT_ALL);
 
   // Find program
+  char command[PATH_MAX];
   struct inode *inode = NULL;
-  int error = namei(path, &inode);
+  int error = nameiname(path, command, &inode);
   if (error != 0)
     panic("init not found!");
+
+  strncpy(p->command, command, PROC_NAME_LEN);
+  p->command[PROC_NAME_LEN - 1] = 0;
 
   ilock(inode);
 
@@ -317,4 +323,30 @@ unsigned long proc_break(struct proc *p, unsigned long brk) {
 
   p->brk = brk;
   return brk;
+}
+
+int sys_getprocs(struct procinfo *buf, size_t *len) {
+  size_t offset = 0;
+  int index = 0;
+
+  for (int p = 0; p < NPROC; p++) {
+    if (proc[p].state != STATE_NULL) {
+      if (buf != NULL) {
+        if (offset + sizeof(struct procinfo) > *len) {
+          return -ENOMEM; // User space buffer too small
+        }
+
+        buf[index].pid = proc[p].pid;
+        buf[index].ppid = proc[p].parent ? proc[p].parent->pid : 0;
+        buf[index].state = proc[p].state;
+        strncpy(buf[index].name, proc[p].command, sizeof(buf[index].name));
+        buf[index].name[sizeof(buf[index].name) - 1] = 0;
+      }
+      offset += sizeof(struct procinfo);
+      index++;
+    }
+  }
+  *len = offset;
+
+  return 0;
 }

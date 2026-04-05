@@ -5,6 +5,7 @@
 
 struct stat;
 struct utimbuf;
+struct procinfo;
 
 ssize_t write(int fd, const void *buf, size_t len) { return syscall(SYS_write, fd, (long)buf, len); }
 
@@ -69,3 +70,5 @@ int creat(const char *filename, int mode) { return syscall(SYS_creat, (long)file
 int utime(const char *filename, const struct utimbuf *times) { return syscall(SYS_utime, (long)filename, (long)times); }
 
 int mkdir(const char *pathname, int mode) { return syscall(SYS_mkdir, (long)pathname, mode); }
+
+int getprocs(struct procinfo *buf, size_t *len) { return syscall(SYS_getprocs, (long)buf, (long)len); }

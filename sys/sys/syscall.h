@@ -35,5 +35,6 @@
 #define SYS_creat 32
 #define SYS_utime 33
 #define SYS_mkdir 34
+#define SYS_getprocs 35
 
 #endif

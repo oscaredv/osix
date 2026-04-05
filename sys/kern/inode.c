@@ -1,6 +1,5 @@
 #include <dirent.h>
 #include <errno.h>
-#include <stdio.h>
 #include <string.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
@@ -378,7 +377,7 @@ int access(struct inode *inode, int mode) {
   return -1;
 }
 
-int parenti(const char *path, char *name, struct inode **inodep) {
+int nameicore(const char *path, char *name, struct inode **inodep, char parent) {
   const char *p = path;
 
   if (*p == '/') {
@@ -423,7 +422,9 @@ int parenti(const char *path, char *name, struct inode **inodep) {
     if (name != NULL) {
       strncpy(name, p, e - p);
       name[e - p] = 0;
+    }
 
+    if (parent) {
       p = e;
       while (*p == '/')
         p++;
@@ -451,7 +452,9 @@ int parenti(const char *path, char *name, struct inode **inodep) {
   return 0;
 }
 
-int namei(const char *path, struct inode **inodep) { return parenti(path, NULL, inodep); }
+int namei(const char *path, struct inode **inodep) { return nameicore(path, NULL, inodep, 0); }
+int nameiname(const char *path, char *name, struct inode **inodep) { return nameicore(path, name, inodep, 0); }
+int parenti(const char *path, char *name, struct inode **inodep) { return nameicore(path, name, inodep, 1); }
 
 int chdir(const char *path) {
   if (path == NULL)

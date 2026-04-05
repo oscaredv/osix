@@ -10,9 +10,6 @@
 #include <sys/signal.h>
 #include <sys/types.h>
 
-// Process states
-enum procstate { STATE_NULL, STATE_IDLE, STATE_RUNNING, STATE_SLEEP, STATE_ZOMBIE };
-
 struct interrupt_frame;
 
 struct proc {
@@ -38,6 +35,8 @@ struct proc {
   struct sigacts sigact;
   unsigned int sig_pending;
   unsigned int sig_mask;
+
+  char command[16];
 };
 
 #define NPROC 8

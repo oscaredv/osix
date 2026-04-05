@@ -4,9 +4,9 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define I_LOCK 1    // inode is locked
-#define I_WANTED 2  // wakeup() must be called on unlock, some other process wants to lock
-#define I_DIRTY 4 // inode has been updated
+#define I_LOCK 1   // inode is locked
+#define I_WANTED 2 // wakeup() must be called on unlock, some other process wants to lock
+#define I_DIRTY 4  // inode has been updated
 
 #define NDIRECT 7
 #define NINDIRECT 512
@@ -36,6 +36,7 @@ unsigned int bmap(struct inode *inode, unsigned int blockno, int flags);
 ssize_t readi(struct inode *inode, void *dst, long offset, size_t nbytes);
 ssize_t writei(struct inode *inode, const void *src, unsigned int offset, size_t nbytes);
 int namei(const char *path, struct inode **inodep);
+int nameiname(const char *path, char *name, struct inode **inodep);
 int parenti(const char *path, char *name, struct inode **inodep);
 struct inode *idup(struct inode *inode);
 int ilock(struct inode *inode);
