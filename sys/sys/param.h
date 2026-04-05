@@ -1,7 +1,7 @@
 #ifndef __SYS_PARAM_H__
 #define __SYS_PARAM_H__
 
-#include <i386/param.h>
+#include <machine/param.h>
 
 #define NGROUPS 4
 
