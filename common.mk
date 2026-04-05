@@ -1,3 +1,4 @@
+MACHINE=i386
 AS=i386-elf-gcc
 CC=i386-elf-gcc
 LD=i386-elf-gcc

@@ -1,7 +1,7 @@
 include ../common.mk
 
 CFLAGS+=-ffreestanding -fno-pie
-CFLAGS+=-I. -I../include -I../sys
+CFLAGS+=-I. -I../include
 
 LDFLAGS=-nostdlib -T link.ld
 
@@ -14,7 +14,13 @@ BIN=$(addprefix $(OBJDIR)/bin/, $(SRC:%.c=%) vi)
 MAN=$(addprefix $(MANDIR)/, $(wildcard *.1))
 
 .PHONY: all
-all: $(BIN) $(MAN)
+all: ../include/sys ../include/$(MACHINE) $(BIN) $(MAN)
+
+../include/sys:
+	cd ../include && ln -sf ../sys/sys sys
+
+../include/$(MACHINE):
+	cd ../include && ln -sf ../sys/$(MACHINE) machine
 
 clean:
 	$(RM) $(BIN)
