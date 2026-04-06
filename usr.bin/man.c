@@ -15,7 +15,7 @@ void usage() {
 void man(const char *page) {
   int child = fork();
   if (child == 0) {
-    execl("/bin/roff", "roff", page, NULL);
+    execl("/usr/bin/roff", "roff", page, NULL);
   } else if (child > 0) {
     int exit_code = 0;
     while (wait(&exit_code) == -1)

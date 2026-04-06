@@ -10,7 +10,7 @@ LIBDIR=../obj/usr/lib
 MANDIR=$(OBJDIR)/usr/man/man1
 
 SRC=$(wildcard *.c)
-BIN=$(addprefix $(OBJDIR)/usr/bin/, $(SRC:%.c=%))
+BIN=$(addprefix $(OBJDIR)/usr/bin/, $(SRC:%.c=%) vi)
 MAN=$(addprefix $(MANDIR)/, $(wildcard *.1))
 
 .PHONY: all
@@ -29,6 +29,9 @@ clean:
 $(OBJDIR)/usr/bin/%: %.c Makefile $(LIBDIR)/libc.a
 	@mkdir -p $(OBJDIR)/usr/bin
 	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) $< $(LIBDIR)/libc.a
+
+$(OBJDIR)/usr/bin/vi: vi/*.h vi/*.c Makefile $(LIBDIR)/libc.a
+	$(CC) -o $@ $(CFLAGS) $(LDFLAGS) vi/*.c $(LIBDIR)/libc.a
 
 $(OBJDIR)/usr/man/man1/%: %
 	@mkdir -p $(MANDIR)
