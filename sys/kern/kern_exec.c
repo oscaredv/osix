@@ -18,6 +18,16 @@ int sys_exec(const char *pathname, const char *argv[], const char *envp[]) {
     return error;
   }
 
+  // Validate binary magic: first byte 0xb8, second byte 0x0b
+  uint8_t magic[2];
+  ilock(inode);
+  int nread = readi(inode, magic, 0, sizeof(magic));
+  iunlock(inode);
+  if (nread != sizeof(magic) || magic[0] != 0xb8 || magic[1] != 0x0b) {
+    iput(inode);
+    return -ENOEXEC;
+  }
+
   strncpy(cur_proc->command, command, PROC_NAME_LEN - 1);
   cur_proc->command[PROC_NAME_LEN - 1] = 0;
 

@@ -31,7 +31,7 @@ int execvp(const char *path, char *const argv[]) {
 
           // Try to execute
           int ret = syscall(SYS_exec, (long)fullpath, (long)argv, (long)environ);
-          if (ret != -1) {
+          if (ret != -1 || errno != ENOENT) {
             return ret;
           }
 

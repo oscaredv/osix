@@ -11,7 +11,7 @@ const char *const sys_errlist[] = {
     "Input/output error",        // EIO
     NULL,
     NULL,
-    NULL,
+    "Exec format error",      // ENOEXEC
     "Bad file descriptor",    // EBADF
     "No child processes",     // ECHILD
     "Try again",              // EAGAIN
