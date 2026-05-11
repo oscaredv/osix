@@ -413,10 +413,40 @@ void free_pipeline(struct Pipeline *pipeline) {
   }
 }
 
-int main(void) {
+void truncate_comments(char *cmdline) {
+  char quote = 0;
+  char last_char = 0;
+  char *p = cmdline;
+  while (*p != 0) {
+    if (*p == '\"' && last_char != '\\') {
+      quote = !quote;
+    }
+    if (!quote && *p == '#' && last_char != '\\') {
+      *p = 0;
+      break;
+    }
+    last_char = *p++;
+  }
+}
+
+int main(int argc, char *argv[]) {
   signal(SIGINT, sighandler);
 
-  if (getuid() == 0) {
+  FILE *input = stdin;
+  int interactive = 1;
+
+  if (argc >= 2) {
+    if (strcmp(argv[1], "-") != 0) {
+      input = fopen(argv[1], "r");
+      if (input == NULL) {
+        perror(argv[1]);
+        return EXIT_FAILURE;
+      }
+      interactive = 0;
+    }
+  }
+
+  if (interactive && getuid() == 0) {
     strncpy(prompt, "# ", PROMPT_SIZE);
   }
 
@@ -424,29 +454,35 @@ int main(void) {
   // TODO: Sub shell $(cmd): Execute cmd in a subshell and replace with its output
   char cmdline[MAX_LINE];
   while (1) {
-    printf("%s", prompt);
-    fflush(stdout);
-    int len = read(STDIN_FILENO, cmdline, sizeof(cmdline));
+    if (interactive) {
+      printf("%s", prompt);
+      fflush(stdout);
+    }
 
-    if (len <= 0 && errno != EINTR) {
+    // Read command line
+    char *ret = fgets(cmdline, sizeof(cmdline), input);
+    if (ret == NULL) {
       // Exit on EOF or read error
       break;
-    } else if (len > 0) {
-      cmdline[len - 1] = 0;
-      reset_pipelines();
-      tokenize(cmdline);
+    }
+    truncate_comments(cmdline);
+    reset_pipelines();
+    tokenize(cmdline);
 
-      for (int p = 0; p < pipelines_count; p++) {
-        glob(&pipelines[p]);
-        expand_variables(&pipelines[p]);
-        // debug_dump(&pipelines[p]);
-        exec_pipeline(&pipelines[p]);
-        wait_for_children();
-        free_pipeline(&pipelines[p]);
-      }
+    for (int p = 0; p < pipelines_count; p++) {
+      glob(&pipelines[p]);
+      expand_variables(&pipelines[p]);
+      // debug_dump(&pipelines[p]);
+      exec_pipeline(&pipelines[p]);
+      wait_for_children();
+      free_pipeline(&pipelines[p]);
     }
   }
 
-  printf("exit\n");
-  return 0;
+  if (!interactive) {
+    fclose(input);
+  } else {
+    printf("exit\n");
+  }
+  return EXIT_SUCCESS;
 }
