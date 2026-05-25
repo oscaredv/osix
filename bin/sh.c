@@ -36,36 +36,53 @@ int pipelines_count;
 
 char prompt[PROMPT_SIZE] = "$ ";
 
+void set_var(const char *name, const char *value) {
+  // TODO: unsetting variables
+  // TODO: internal shell variables
+  setenv(name, value, 1);
+}
+
+void set_var_int(const char *name, int value) {
+  char buf[16];
+  snprintf(buf, sizeof(buf), "%d", value);
+  set_var(name, buf);
+}
+
 int internal_cmd(char *argv[]) {
   if (!strcmp(argv[0], "exit")) {
     exit(EXIT_SUCCESS);
   }
 
+  int rc = 0;
+  int is_internal = 0;
   if (!strcmp(argv[0], "cd")) {
-    if (chdir(argv[1]) == -1) {
+    is_internal = 1;
+    if (chdir(argv[1]) != 0) {
       perror(argv[1]);
+      rc = 1;
     }
-    return 1;
-  }
-
-  if (!strcmp(argv[0], "clear")) {
+  } else if (!strcmp(argv[0], "clear")) {
+    is_internal = 1;
     printf("\e[J");
     printf("\e[H");
     fflush(stdout);
-    return 1;
   }
 
   for (int i = 0; argv[0][i]; i++) {
     // Set variable
     if (argv[0][i] == '=') {
+      is_internal = 1;
       argv[0][i] = 0;
       char *varname = argv[0];
       char *value = &argv[0][i + 1];
-      setenv(varname, value, 1);
-      return 1;
+      set_var(varname, value);
+      break;
     }
   }
-  return 0;
+  if (is_internal) {
+    set_var_int("?", rc);
+  }
+  return is_internal;
 }
 
 int pattern_match(const char *pattern, const char *s) {
@@ -400,8 +417,14 @@ void debug_dump(struct Pipeline *pipeline) {
 }
 
 void wait_for_children() {
-  while (wait(NULL) > 0)
-    ;
+  int status;
+  int pid = -1;
+  do {
+    pid = wait(&status);
+    if (pid > 0) {
+      set_var_int("?", status);
+    }
+  } while (pid > 0);
 }
 
 void free_pipeline(struct Pipeline *pipeline) {
