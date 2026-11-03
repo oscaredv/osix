@@ -55,3 +55,22 @@ char *strdup(const char *s) {
   memcpy(dup, s, len);
   return dup;
 }
+
+char *strchr(const char *s, int c) {
+  while (*s) {
+    if (*s == c)
+      return (char *)s;
+    s++;
+  }
+  return NULL;
+}
+
+char *strrchr(const char *s, int c) {
+  const char *last = NULL;
+  while (*s) {
+    if (*s == c)
+      last = s;
+    s++;
+  }
+  return (char *)last;
+}

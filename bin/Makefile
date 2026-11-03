@@ -10,7 +10,7 @@ LIBDIR=../obj/usr/lib
 MANDIR=$(OBJDIR)/usr/man/man1
 
 SRC=$(wildcard *.c)
-BIN=$(addprefix $(OBJDIR)/bin/, $(SRC:%.c=%))
+BIN=$(addprefix $(OBJDIR)/bin/, $(SRC:%.c=%) [)
 MAN=$(addprefix $(MANDIR)/, $(wildcard *.1))
 
 .PHONY: all
@@ -25,6 +25,9 @@ all: ../include/sys ../include/machine $(BIN) $(MAN)
 clean:
 	$(RM) $(BIN)
 	$(RM) ../include/sys ../include/machine
+
+$(OBJDIR)/bin/[: $(OBJDIR)/bin/test
+	cd $(OBJDIR)/bin && ln -nf test \[
 
 $(OBJDIR)/bin/%: %.c Makefile $(LIBDIR)/libc.a
 	@mkdir -p $(OBJDIR)/bin

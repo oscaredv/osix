@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -57,4 +58,31 @@ void qsort(void *base, size_t count, size_t size, int (*compar)(const void *, co
 
   qsort(arr, i, size, compar);
   qsort(arr + (i + 1) * size, count - i - 1, size, compar);
+}
+
+long strtol(const char *ptr, char **end, int base) {
+  long ret = 0;
+  int sign = 1;
+
+  while (isspace(*ptr))
+    ptr++;
+
+  if (*ptr == '-') {
+    sign = -1;
+    ptr++;
+  } else if (*ptr == '+') {
+    ptr++;
+  }
+
+  if (base == 10) {
+    while (*ptr >= '0' && *ptr <= '9') {
+      ret *= base;
+      ret += *ptr++ - '0';
+    }
+  }
+
+  if (end)
+    *end = (char *)ptr;
+
+  return ret * sign;
 }

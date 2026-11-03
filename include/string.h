@@ -21,4 +21,8 @@ const char *strerror(int errnum);
 
 char *strdup(const char *s);
 
+char *strchr(const char *s, int c);
+
+char *strrchr(const char *s, int c);
+
 #endif
