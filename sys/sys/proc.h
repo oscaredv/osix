@@ -55,7 +55,7 @@ struct proc *proc_alloc();
 void proc_init();
 void proc_create(const char *path);
 void proc_init_kstack(struct proc *p);
-uintptr_t proc_init_ustack(uintptr_t ustack, const char *argv[], const char *parent_envp[]);
+uintptr_t proc_init_ustack(uintptr_t ustack, const char *argv[], const char *arg1, const char *parent_envp[]);
 void proc_init_user_context(struct proc *p, uintptr_t user_esp);
 unsigned long proc_break(struct proc *p, unsigned long brk);
 void proc_exit(struct proc *p, int status);

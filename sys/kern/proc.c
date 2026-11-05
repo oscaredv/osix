@@ -39,7 +39,7 @@ void proc_init_kstack(struct proc *p) {
   p->esp0 -= 4 * sizeof(uintptr_t);
 }
 
-uintptr_t proc_init_ustack(uintptr_t ustack, const char *argv[], const char *parent_envp[]) {
+uintptr_t proc_init_ustack(uintptr_t ustack, const char *argv[], const char *arg1, const char *parent_envp[]) {
   uintptr_t esp = SYS_VADDR_TMP;
 
   // Temporary map stack to kernel memory
@@ -88,17 +88,22 @@ uintptr_t proc_init_ustack(uintptr_t ustack, const char *argv[], const char *par
   while (argv[argc] != NULL)
     ++argc;
 
+  if (arg1 != NULL)
+    argc++;
+
   // Copied arguments vector
   const char *argp[argc];
 
+  int s = 0;
   for (int a = 0; a < argc; a++) {
-    int arg_len = strlen(argv[a]);
+    const char *arg = (arg1 != NULL && a == 1) ? arg1 : argv[s++];
+    int arg_len = strlen(arg);
     // Align string length to four bytes boundary
     int arg_stack_len = (arg_len + sizeof(uintptr_t)) & ~(sizeof(uintptr_t) - 1);
 
     // Copy argument to stack
     esp -= arg_stack_len;
-    strncpy((char *)esp, argv[a], arg_stack_len);
+    strncpy((char *)esp, arg, arg_stack_len);
 
     // Store address to argument in new arguments vector
     argp[a] = (const char *)(esp - esp_offset);
@@ -190,7 +195,7 @@ void proc_create(const char *path) {
 
   const char *argv[] = {path, NULL};
   const char *envp[] = {NULL};
-  uintptr_t user_esp = proc_init_ustack(ustack, argv, envp);
+  uintptr_t user_esp = proc_init_ustack(ustack, argv, NULL, envp);
 
   pmap_enter(&p->pmap, USER_USTACK, ustack, VM_PROT_ALL);
 
