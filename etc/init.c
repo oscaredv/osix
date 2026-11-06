@@ -57,17 +57,23 @@ void readttys() {
   }
 }
 
+void rc() {
+  short rcpid = fork();
+  if (rcpid == 0) {
+    execl("/bin/sh", "/bin/sh", "/etc/rc", NULL);
+  }
+  if (rcpid > 0) {
+    wait(NULL);
+  }
+}
+
 void multi() {
-  printf("Entering multi-user\n");
+  rc();
 
   readttys();
 
+  pid_t pid = -1;
   while (1) {
-    // Wait for child processes to exit. The PID of the child process is
-    // returned. If init has no child processes, as when no getty processes
-    // has been started, -1 is returned.
-    short pid = wait(NULL);
-
     for (int t = 0; t < tty_count; t++) {
       if (ttys[t].pid == pid || pid == -1) {
         // Fork and exec getty
@@ -81,6 +87,9 @@ void multi() {
         }
       }
     }
+
+    // Wait for getty processes to exit
+    pid = wait(NULL);
   }
 
   printf("Shutting down...\n");

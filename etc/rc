@@ -1,0 +1,3 @@
+# Osix startup script
+
+echo "Entering multi-user"

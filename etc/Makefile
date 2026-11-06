@@ -12,7 +12,7 @@ MAN5DIR=$(OBJDIR)/usr/man/man5
 
 SRC=$(wildcard *.c)
 BIN=$(addprefix $(OBJDIR)/etc/, $(SRC:%.c=%))
-FILES=$(addprefix $(OBJDIR)/etc/, passwd group ttys motd)
+FILES=$(addprefix $(OBJDIR)/etc/, passwd group ttys motd rc)
 MAN1=$(addprefix $(MAN1DIR)/, $(wildcard *.1))
 MAN5=$(addprefix $(MAN5DIR)/, $(wildcard *.5))
 
