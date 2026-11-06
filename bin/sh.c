@@ -24,6 +24,8 @@ struct Command {
   char *input;
   char *output;
   int append;
+  pid_t pid;
+  int background;
 };
 
 struct Pipeline {
@@ -206,8 +208,17 @@ void exec_pipeline(struct Pipeline *pipeline) {
       continue;
     }
 
-    pid_t pid = fork();
-    if (pid == 0) {
+    int argc = 0;
+    for (int a = 0; pipeline->cmds[i].argv[a] != NULL; a++) {
+      argc++;
+    }
+    if (strcmp("&", pipeline->cmds[i].argv[argc - 1]) == 0) {
+      pipeline->cmds[i].argv[argc - 1] = NULL;
+      pipeline->cmds[i].background = 1;
+    }
+
+    pipeline->cmds[i].pid = fork();
+    if (pipeline->cmds[i].pid == 0) {
       // Connect output to input
       if (i > 0) {
         dup2(pipes[(i - 1) * 2], STDIN_FILENO);
@@ -341,6 +352,8 @@ void reset_pipelines() {
       pipelines[p].cmds[c].input = NULL;
       pipelines[p].cmds[c].output = NULL;
       pipelines[p].cmds[c].append = 0;
+      pipelines[p].cmds[c].pid = 0;
+      pipelines[p].cmds[c].background = 0;
     }
   }
   pipelines_count = 0;
@@ -416,15 +429,29 @@ void debug_dump(struct Pipeline *pipeline) {
   }
 }
 
-void wait_for_children() {
+void wait_for_children(struct Pipeline *pipeline) {
   int status;
-  int pid = -1;
-  do {
+  pid_t pid = 0;
+  // Count PIDs we'll wait for
+  int wait_for_pids = 0;
+  for (int c = 0; c < pipeline->cmds_count; c++) {
+    if (pipeline->cmds[c].pid > 0 && pipeline->cmds[c].background == 0)
+      wait_for_pids++;
+  }
+
+  while (pid >= 0 && wait_for_pids > 0) {
+    // Wait for the next child process to finish
     pid = wait(&status);
-    if (pid > 0) {
-      set_var_int("?", status);
+
+    for (int c = 0; c < pipeline->cmds_count; c++) {
+      // Does the PID match one of the childs we're waiting for?
+      if (pipeline->cmds[c].pid == pid && pipeline->cmds[c].background == 0) {
+        wait_for_pids--;
+        set_var_int("?", status);
+        break;
+      }
     }
-  } while (pid > 0);
+  }
 }
 
 void free_pipeline(struct Pipeline *pipeline) {
@@ -497,7 +524,7 @@ int main(int argc, char *argv[]) {
       expand_variables(&pipelines[p]);
       // debug_dump(&pipelines[p]);
       exec_pipeline(&pipelines[p]);
-      wait_for_children();
+      wait_for_children(&pipelines[p]);
       free_pipeline(&pipelines[p]);
     }
   }
