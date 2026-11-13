@@ -10,6 +10,8 @@
 #include <time.h>
 #include <unistd.h>
 
+#define COLS 80
+
 char show_hidden = 0;
 char long_format = 0;
 char show_inodes = 0;
@@ -17,6 +19,16 @@ char single_col = 0;
 char multiple = 0;
 char first = 1;
 char last_was_dir = 0;
+
+enum sort_type { SORT_OFF, SORT_NAME, SORT_SIZE, SORT_TIME };
+enum sort_type sort_by = SORT_NAME;
+char reverse_sort = 0;
+
+struct dirinfo {
+  struct dirent dir;
+  struct stat st;
+  int name_len;
+};
 
 const char *mname[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
@@ -80,6 +92,93 @@ void print_long(const char *base, const char *name, unsigned short ino) {
   printf(" %s\n", name);
 }
 
+int compare_dirinfo(const void *a, const void *b) {
+  struct dirinfo *dirinfo_a = *(struct dirinfo **)a;
+  struct dirinfo *dirinfo_b = *(struct dirinfo **)b;
+  int ret = 0;
+  if (sort_by == SORT_SIZE) {
+    ret = reverse_sort ? (dirinfo_a->st.st_size - dirinfo_b->st.st_size)
+                       : (dirinfo_b->st.st_size - dirinfo_a->st.st_size);
+  } else if (sort_by == SORT_TIME) {
+    ret = reverse_sort ? (dirinfo_a->st.st_time - dirinfo_b->st.st_time)
+                       : (dirinfo_b->st.st_time - dirinfo_a->st.st_time);
+  }
+
+  if (ret == 0 || sort_by == SORT_NAME) {
+    ret = (reverse_sort) ? strcmp(dirinfo_b->dir.d_name, dirinfo_a->dir.d_name)
+                         : strcmp(dirinfo_a->dir.d_name, dirinfo_b->dir.d_name);
+  }
+  return ret;
+}
+
+void read_dir(int fd, struct dirinfo *entries[], int *entries_count) {
+  struct dirent dir;
+  while (read(fd, &dir, sizeof(struct dirent)) == sizeof(struct dirent)) {
+    if (dir.d_ino != 0 && (dir.d_name[0] != '.' || show_hidden)) {
+      entries[*entries_count] = malloc(sizeof(struct dirinfo));
+      memcpy(&entries[*entries_count]->dir, &dir, sizeof(struct dirent));
+      // int name_len = strlen(entries[*entries_count]->dir.d_name);
+      // entries[*entries_count]->name_len = name_len;
+      // if (name_len > max_name_len) {
+      //   max_name_len = name_len;
+      // }
+      (*entries_count)++;
+    }
+  }
+}
+
+int get_max_name_len(struct dirinfo *entries[], int entries_count) {
+  int max_name_len = 0;
+  for (int i = 0; i < entries_count; i++) {
+    entries[i]->name_len = strlen(entries[i]->dir.d_name);
+    ;
+
+    if (entries[i]->name_len > max_name_len) {
+      max_name_len = entries[i]->name_len;
+    }
+  }
+  return max_name_len;
+}
+
+void stat_entries(struct dirinfo *entries[], int entries_count, const char *dir_name) {
+  for (int i = 0; i < entries_count; i++) {
+    char fullname[PATH_MAX];
+    snprintf(fullname, PATH_MAX, "%s/%s", dir_name, entries[i]->dir.d_name);
+    if (stat(fullname, &entries[i]->st) == -1) {
+      fprintf(stderr, "Failed to stat %s\n", fullname);
+    }
+  }
+}
+
+void print_entries(struct dirinfo *entries[], int entries_count, int max_name_len, const char *parent) {
+  int columns = COLS / (max_name_len + 2 + (show_inodes ? 4 : 0));
+  int col = 0;
+  for (int i = 0; i < entries_count; i++) {
+    if (long_format) {
+      print_long(parent, entries[i]->dir.d_name, entries[i]->dir.d_ino);
+    } else {
+      if (!single_col) {
+        if (col > 0 && col >= columns) {
+          printf("\n");
+          col = 0;
+        }
+      }
+      if (show_inodes) {
+        printf("%3d ", entries[i]->dir.d_ino);
+      }
+      printf("%s  ", entries[i]->dir.d_name);
+      if (single_col) {
+        printf("\n");
+      } else {
+        for (int s = 0; s < (max_name_len - entries[i]->name_len); s++) {
+          printf(" ");
+        }
+      }
+      col++;
+    }
+  }
+}
+
 int ls(const char *name) {
   struct stat st;
   if (stat(name, &st) == -1) {
@@ -103,23 +202,25 @@ int ls(const char *name) {
     if (multiple)
       printf("%s:\n", name);
 
-    struct dirent dir;
-    while (read(fd, &dir, sizeof(struct dirent)) == sizeof(struct dirent)) {
-      if (dir.d_ino != 0 && (dir.d_name[0] != '.' || show_hidden)) {
-        if (long_format) {
-          print_long(name, dir.d_name, dir.d_ino);
-        } else {
-          if (show_inodes) {
-            printf("%3d ", dir.d_ino);
-          }
-          printf("%s ", dir.d_name);
-          if (single_col) {
-            printf("\n");
-          }
-        }
-      }
-    }
+    int entries_count = 0;
+    struct dirinfo *entries[256];
+
+    read_dir(fd, entries, &entries_count);
     close(fd);
+    int max_name_len = get_max_name_len(entries, entries_count);
+    if (sort_by == SORT_SIZE || sort_by == SORT_TIME) {
+      stat_entries(entries, entries_count, name);
+    }
+
+    if (sort_by != SORT_OFF) {
+      qsort(entries, entries_count, sizeof(struct dirinfo *), compare_dirinfo);
+    }
+
+    print_entries(entries, entries_count, max_name_len, name);
+
+    for (int i = 0; i < entries_count; i++) {
+      free(entries[i]);
+    }
   } else {
     if (last_was_dir)
       printf("\n");
@@ -140,7 +241,7 @@ int ls(const char *name) {
 }
 
 void usage() {
-  fprintf(stderr, "usage: ls [-lai1] [DIR...]\n");
+  fprintf(stderr, "usage: ls [-lai1rSU] [DIR...]\n");
   exit(EXIT_SUCCESS);
 }
 
@@ -164,6 +265,18 @@ int main(int argc, char **argv) {
         break;
       case '1':
         single_col = 1;
+        break;
+      case 'S':
+        sort_by = SORT_SIZE;
+        break;
+      case 'U':
+        sort_by = SORT_OFF;
+        break;
+      case 'r':
+        reverse_sort = 1;
+        break;
+      case 't':
+        sort_by = SORT_TIME;
         break;
       case 'h':
         usage();
