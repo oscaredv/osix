@@ -13,7 +13,7 @@
 #include <unistd.h>
 
 #define MAX_LINE 1024
-#define PROMPT_SIZE 16
+#define PROMPT_MAX_SIZE 16
 #define MAX_ARGS 256
 #define MAX_CMDS 16
 #define MAX_PIPES 16
@@ -36,7 +36,7 @@ struct Pipeline {
 struct Pipeline pipelines[MAX_PIPES];
 int pipelines_count;
 
-char prompt[PROMPT_SIZE] = "$ ";
+char prompt[PROMPT_MAX_SIZE] = "$ ";
 
 void set_var(const char *name, const char *value) {
   // TODO: unsetting variables
@@ -497,7 +497,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (interactive && getuid() == 0) {
-    strncpy(prompt, "# ", PROMPT_SIZE);
+    strncpy(prompt, "# ", PROMPT_MAX_SIZE);
   }
 
   // TODO: IFS handling: Support for setting and using IFS to control word splitting behavior

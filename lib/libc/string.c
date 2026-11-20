@@ -74,3 +74,62 @@ char *strrchr(const char *s, int c) {
   }
   return (char *)last;
 }
+
+char *strtok(char *str, const char *delim) {
+  static char *last;
+  if (str == NULL)
+    str = last;
+
+  if (str == NULL)
+    return NULL;
+
+  // Skip leading delimiters
+  str += strspn(str, delim);
+  if (*str == '\0') {
+    last = NULL;
+    return NULL;
+  }
+
+  char *token = str;
+  str = strpbrk(token, delim);
+  if (str) {
+    *str = '\0';
+    last = str + 1;
+  } else {
+    last = NULL;
+  }
+  return token;
+}
+
+size_t strspn(const char *s, const char *accept) {
+  size_t count = 0;
+  while (*s) {
+    const char *a = accept;
+    int found = 0;
+    while (*a) {
+      if (*s == *a) {
+        found = 1;
+        break;
+      }
+      a++;
+    }
+    if (!found)
+      break;
+    count++;
+    s++;
+  }
+  return count;
+}
+
+char *strpbrk(const char *s, const char *accept) {
+  while (*s) {
+    const char *a = accept;
+    while (*a) {
+      if (*s == *a)
+        return (char *)s;
+      a++;
+    }
+    s++;
+  }
+  return NULL;
+}

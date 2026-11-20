@@ -1,6 +1,7 @@
 #ifndef __INCLUDE_TERMIOS_H__
 #define __INCLUDE_TERMIOS_H__
 
+#define ISIG 2     // enable signal handling
 #define ECHO 8     // tty echo
 #define ICANON 256 // enable terminal line dicipline
 

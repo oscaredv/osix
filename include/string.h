@@ -25,4 +25,10 @@ char *strchr(const char *s, int c);
 
 char *strrchr(const char *s, int c);
 
+char *strtok(char *str, const char *delim);
+
+size_t strspn(const char *s, const char *accept);
+
+char *strpbrk(const char *s, const char *accept);
+
 #endif

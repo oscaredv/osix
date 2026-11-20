@@ -10,7 +10,7 @@ struct tty ttys[NTTY];
 
 void tty_init() {
   for (int t = 0; t < NTTY; t++) {
-    ttys[t].termios.c_lflag = ECHO | ICANON;
+    ttys[t].termios.c_lflag = ISIG | ECHO | ICANON;
   }
 }
 
@@ -113,7 +113,7 @@ void tty_input(dev_t dev, char c) {
     return;
 
   struct tty *tty = &cdevsw[major(dev)].tty[minor(dev)];
-  if (c == 3) {
+  if (c == 3 && (tty->termios.c_lflag & ISIG)) {
     // CTRL-c pressed - kill session's process group
     if (tty->pgrp > 1)
       kill(-tty->pgrp, SIGINT);
