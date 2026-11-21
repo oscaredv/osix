@@ -181,10 +181,12 @@ void print_entries(struct dirinfo *entries[], int entries_count, int max_name_le
 }
 
 int ls(const char *name) {
+  int entries_count = 0;
+
   struct stat st;
   if (stat(name, &st) == -1) {
     perror(name);
-    return EXIT_FAILURE;
+    return -1;
   }
 
   if ((st.st_mode & S_IFMT) == S_IFDIR) {
@@ -197,13 +199,12 @@ int ls(const char *name) {
     int fd = open(name, O_RDONLY);
     if (fd == -1) {
       perror(name);
-      return EXIT_FAILURE;
+      return -1;
     }
 
     if (multiple)
       printf("%s:\n", name);
 
-    int entries_count = 0;
     struct dirinfo *entries[256];
 
     read_dir(fd, entries, &entries_count);
@@ -238,7 +239,7 @@ int ls(const char *name) {
       }
     }
   }
-  return 0;
+  return entries_count;
 }
 
 void usage() {
@@ -292,18 +293,22 @@ int main(int argc, char **argv) {
 
   int ret = EXIT_SUCCESS;
   if (arg == argc) {
-    ret = ls(".");
-    if (!long_format && !single_col && ret == EXIT_SUCCESS)
+    int entries_count = ls(".");
+    if (!long_format && !single_col && entries_count > 0)
       printf("\n");
+
+    if (entries_count < 0)
+      ret = EXIT_FAILURE;
   }
 
   multiple = (argc - arg) > 1;
   while (arg < argc) {
-    if (ls(argv[arg]) != 0) {
-      ret = EXIT_FAILURE;
-    }
-    if (!long_format && !single_col && ret == EXIT_SUCCESS)
+    int entries_count = ls(argv[arg]);
+    if (!long_format && !single_col && entries_count > 0)
       printf("\n");
+
+    if (entries_count < 0)
+      ret = EXIT_FAILURE;
 
     ++arg;
   }
