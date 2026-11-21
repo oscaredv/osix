@@ -20,6 +20,7 @@ char single_col = 0;
 char multiple = 0;
 char first = 1;
 char last_was_dir = 0;
+char colorize = 1;
 
 enum sort_type { SORT_OFF, SORT_NAME, SORT_SIZE, SORT_TIME };
 enum sort_type sort_by = SORT_NAME;
@@ -33,69 +34,81 @@ struct dirinfo {
 
 const char *mname[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
-void print_long(const char *base, const char *name, unsigned short ino) {
-  char dirent_name[PATH_MAX];
-  char *p = dirent_name;
-  strncpy(p, base, PATH_MAX);
-  p += strlen(base);
-  *p++ = '/';
-  strncpy(p, name, PATH_MAX);
+void entry_color(struct stat *st) {
+  if (colorize) {
+    if (S_ISDIR(st->st_mode)) {
+      printf("\033[34m"); // Blue directories
+    } else if ((st->st_mode & S_IFMT) == S_IFBLK || (st->st_mode & S_IFMT) == S_IFCHR) {
+      printf("\033[33m"); // Yellow block & character devices
+    } else if ((st->st_mode & S_IFMT) == S_IFLNK) {
+      printf("\033[36m"); // Cyan symbolic links
+    } else if ((st->st_mode & S_IFMT) == S_IFIFO || (st->st_mode & S_IFMT) == S_IFSOCK) {
+      printf("\033[35m"); // Magenta FIFO/named pipe & sockets
+    } else if (st->st_mode & S_IXUSR) {
+      printf("\033[32m"); // Green for executable
+    }
+  }
+}
 
-  struct stat st;
-  stat(dirent_name, &st);
-
+void print_long(const char *name, struct stat *st) {
   char typ = '-';
-  if ((st.st_mode & S_IFMT) == S_IFDIR)
+  if ((st->st_mode & S_IFMT) == S_IFDIR)
     typ = 'd';
-  if ((st.st_mode & S_IFMT) == S_IFCHR)
+  if ((st->st_mode & S_IFMT) == S_IFCHR)
     typ = 'c';
-  if ((st.st_mode & S_IFMT) == S_IFBLK)
+  if ((st->st_mode & S_IFMT) == S_IFBLK)
     typ = 'b';
 
-  char rusr = (st.st_mode & S_IRUSR) ? 'r' : '-';
-  char wusr = (st.st_mode & S_IWUSR) ? 'w' : '-';
-  char xusr = (st.st_mode & S_IXUSR) ? 'x' : '-';
-  char rgrp = (st.st_mode & S_IRGRP) ? 'r' : '-';
-  char wgrp = (st.st_mode & S_IWGRP) ? 'w' : '-';
-  char xgrp = (st.st_mode & S_IXGRP) ? 'x' : '-';
-  char roth = (st.st_mode & S_IROTH) ? 'r' : '-';
-  char woth = (st.st_mode & S_IWOTH) ? 'w' : '-';
-  char xoth = (st.st_mode & S_IXOTH) ? 'x' : '-';
+  char rusr = (st->st_mode & S_IRUSR) ? 'r' : '-';
+  char wusr = (st->st_mode & S_IWUSR) ? 'w' : '-';
+  char xusr = (st->st_mode & S_IXUSR) ? 'x' : '-';
+  char rgrp = (st->st_mode & S_IRGRP) ? 'r' : '-';
+  char wgrp = (st->st_mode & S_IWGRP) ? 'w' : '-';
+  char xgrp = (st->st_mode & S_IXGRP) ? 'x' : '-';
+  char roth = (st->st_mode & S_IROTH) ? 'r' : '-';
+  char woth = (st->st_mode & S_IWOTH) ? 'w' : '-';
+  char xoth = (st->st_mode & S_IXOTH) ? 'x' : '-';
 
   if (show_inodes) {
-    printf("%3d ", ino);
+    printf("%3d ", st->st_ino);
   }
   printf("%c", typ);
   printf("%c%c%c", rusr, wusr, xusr);
   printf("%c%c%c", rgrp, wgrp, xgrp);
   printf("%c%c%c", roth, woth, xoth);
 
-  printf(" %d", st.st_nlink);
+  printf(" %d", st->st_nlink);
 
-  struct passwd *pw = getpwuid(st.st_uid);
+  struct passwd *pw = getpwuid(st->st_uid);
   if (pw != NULL) {
     printf(" %6s", pw->pw_name);
   } else {
-    printf(" %6d", st.st_uid);
+    printf(" %6d", st->st_uid);
   }
 
-  struct group *gr = getgrgid(st.st_gid);
+  struct group *gr = getgrgid(st->st_gid);
   if (gr != NULL) {
     printf(" %6s", gr->gr_name);
   } else {
-    printf(" %6d", st.st_gid);
+    printf(" %6d", st->st_gid);
   }
 
   // If block or character device, show major/minor numbers, otherwise show file size
-  if ((st.st_mode & S_IFMT) == S_IFBLK || (st.st_mode & S_IFMT) == S_IFCHR) {
-    printf(" %2d, %2d", major(st.st_rdev), minor(st.st_rdev));
+  if ((st->st_mode & S_IFMT) == S_IFBLK || (st->st_mode & S_IFMT) == S_IFCHR) {
+    printf(" %2d, %2d", major(st->st_rdev), minor(st->st_rdev));
   } else {
-    printf(" %6d", st.st_size);
+    printf(" %6d", st->st_size);
   }
 
-  struct tm *tm = gmtime(&st.st_time);
-  printf(" %s %3d %02d:%02d", mname[tm->tm_mon], tm->tm_mday, tm->tm_hour, tm->tm_min);
-  printf(" %s\n", name);
+  struct tm *tm = gmtime(&st->st_time);
+  printf(" %s %3d %02d:%02d ", mname[tm->tm_mon], tm->tm_mday, tm->tm_hour, tm->tm_min);
+  if (colorize) {
+    entry_color(st);
+  }
+  printf("%s\n", name);
+  if (colorize) {
+    printf("\033[0m");
+  }
 }
 
 int compare_dirinfo(const void *a, const void *b) {
@@ -151,12 +164,12 @@ void stat_entries(struct dirinfo *entries[], int entries_count, const char *dir_
   }
 }
 
-void print_entries(struct dirinfo *entries[], int entries_count, int max_name_len, const char *parent) {
-  int columns = COLS / (max_name_len + 2 + (show_inodes ? 4 : 0));
+void print_entries(struct dirinfo *entries[], int entries_count, int max_name_len) {
+  int columns = COLS / (max_name_len + (show_inodes ? 4 : 0));
   int col = 0;
   for (int i = 0; i < entries_count; i++) {
     if (long_format) {
-      print_long(parent, entries[i]->dir.d_name, entries[i]->dir.d_ino);
+      print_long(entries[i]->dir.d_name, &entries[i]->st);
     } else {
       if (!single_col) {
         if (col > 0 && col >= columns) {
@@ -167,10 +180,17 @@ void print_entries(struct dirinfo *entries[], int entries_count, int max_name_le
       if (show_inodes) {
         printf("%3d ", entries[i]->dir.d_ino);
       }
-      printf("%s  ", entries[i]->dir.d_name);
+      if (colorize) {
+        entry_color(&entries[i]->st);
+      }
+      printf("%s", entries[i]->dir.d_name);
+      if (colorize) {
+        printf("\033[0m");
+      }
       if (single_col) {
         printf("\n");
       } else {
+        printf("  ");
         for (int s = 0; s < (max_name_len - entries[i]->name_len); s++) {
           printf(" ");
         }
@@ -210,18 +230,20 @@ int ls(const char *name) {
     read_dir(fd, entries, &entries_count);
     close(fd);
     int max_name_len = get_max_name_len(entries, entries_count);
-    if (sort_by == SORT_SIZE || sort_by == SORT_TIME) {
+    if (sort_by == SORT_SIZE || sort_by == SORT_TIME || colorize) {
       stat_entries(entries, entries_count, name);
     }
 
-    if (sort_by != SORT_OFF) {
-      qsort(entries, entries_count, sizeof(struct dirinfo *), compare_dirinfo);
-    }
+    if (entries_count > 0) {
+      if (sort_by != SORT_OFF) {
+        qsort(entries, entries_count, sizeof(struct dirinfo *), compare_dirinfo);
+      }
 
-    print_entries(entries, entries_count, max_name_len, name);
+      print_entries(entries, entries_count, max_name_len);
 
-    for (int i = 0; i < entries_count; i++) {
-      free(entries[i]);
+      for (int i = 0; i < entries_count; i++) {
+        free(entries[i]);
+      }
     }
   } else {
     if (last_was_dir)
@@ -230,26 +252,34 @@ int ls(const char *name) {
     first = 0;
     last_was_dir = 0;
 
+    if (long_format || colorize)
+      stat(name, &st);
+
     if (long_format) {
-      print_long(".", name, 99);
+      print_long(name, &st);
     } else {
-      printf("%s ", name);
-      if (single_col) {
-        printf("\n");
+      if (colorize) {
+        entry_color(&st);
       }
+      printf("%s", name);
+      if (colorize) {
+        printf("\033[0m");
+      }
+      printf("\n");
     }
   }
   return entries_count;
 }
 
 void usage() {
-  fprintf(stderr, "usage: ls [-lai1rSU] [DIR...]\n");
+  fprintf(stderr, "usage: ls [-lai1rSUtG] [DIR...]\n");
   exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char **argv) {
   if (!isatty(STDOUT_FILENO)) {
     single_col = 1;
+    colorize = 0;
   }
 
   int arg = 1;
@@ -279,6 +309,9 @@ int main(int argc, char **argv) {
         break;
       case 't':
         sort_by = SORT_TIME;
+        break;
+      case 'G':
+        colorize = !colorize;
         break;
       case 'h':
         usage();

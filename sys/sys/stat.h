@@ -4,12 +4,14 @@
 #include <sys/types.h>
 #include <time.h>
 
-#define S_IFMT 0xF000  // Inode type mask
-#define S_IFREG 0x8000 // Regular file
-#define S_IFBLK 0x6000 // Block device
-#define S_IFDIR 0x4000 // Directory
-#define S_IFCHR 0x2000 // Character device
-#define S_IFIFO 0x1000 // FIFO/named pipe
+#define S_IFMT 0xF000   // Inode type mask
+#define S_IFREG 0x8000  // Regular file
+#define S_IFBLK 0x6000  // Block device
+#define S_IFDIR 0x4000  // Directory
+#define S_IFCHR 0x2000  // Character device
+#define S_IFIFO 0x1000  // FIFO/named pipe
+#define S_IFLNK 0xA000  // Symbolic link
+#define S_IFSOCK 0xC000 // Socket
 
 #define S_ISUID 0004000 // Set UID on execute
 #define S_ISGID 0002000 // Set GID on execute
