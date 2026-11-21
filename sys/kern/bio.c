@@ -68,10 +68,10 @@ struct buf *bread(dev_t dev, unsigned int block_no) {
   if ((buf->flags & B_DONE) == 0) {
     buf->flags &= ~B_ERROR;
 
-    if (major(dev) >= num_bdev || bdevsw[major(dev)].read == NULL)
+    if (major(dev) >= num_bdev || bdevsw[major(dev)].d_read == NULL)
       panic("bread: no read function");
 
-    bdevsw[major(dev)].read(buf);
+    bdevsw[major(dev)].d_read(buf);
   }
 
   return buf;
@@ -80,10 +80,10 @@ struct buf *bread(dev_t dev, unsigned int block_no) {
 void bwrite(struct buf *buf) {
   buf->flags &= ~(B_DIRTY | B_DONE | B_ERROR);
 
-  if (major(buf->dev) >= num_bdev || bdevsw[major(buf->dev)].write == NULL)
+  if (major(buf->dev) >= num_bdev || bdevsw[major(buf->dev)].d_write == NULL)
     panic("bwrite: no write function");
 
-  bdevsw[major(buf->dev)].write(buf);
+  bdevsw[major(buf->dev)].d_write(buf);
 }
 
 void brelse(struct buf *buf) {

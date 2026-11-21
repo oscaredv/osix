@@ -1,6 +1,7 @@
 #ifndef __SYS_INODE_H__
 #define __SYS_INODE_H__
 
+#include <stddef.h>
 #include <sys/types.h>
 #include <time.h>
 

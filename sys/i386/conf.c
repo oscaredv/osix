@@ -31,9 +31,20 @@ ssize_t null_write(dev_t dev, const void *buf, size_t count) {
   return 0;
 }
 
-struct cdevsw cdevsw[] = {{"null", null_read, null_write, NULL, NULL},
-                          {"console", cn_read, cn_write, tty_ioctl, &ttys[0]},
-                          {"zero", zero_read, null_write, NULL, NULL},
-                          {"tty", tty_read, tty_write, tty_ioctl, &ttys[1]}};
+int null_open(dev_t dev, int flags) {
+  (void)dev;
+  (void)flags;
+  return 0;
+}
+
+int null_close(dev_t dev) {
+  (void)dev;
+  return 0;
+}
+
+struct cdevsw cdevsw[] = {{"null", null_open, null_close, null_read, null_write, NULL, NULL},
+                          {"console", cn_open, cn_close, cn_read, cn_write, tty_ioctl, &ttys[0]},
+                          {"zero", null_open, null_close, zero_read, null_write, NULL, NULL},
+                          {"tty", tty_open, tty_close, tty_read, tty_write, tty_ioctl, &ttys[1]}};
 
 int num_cdev = sizeof(cdevsw) / sizeof(struct cdevsw);

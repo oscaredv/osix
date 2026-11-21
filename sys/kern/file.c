@@ -52,6 +52,9 @@ void file_close(struct file *file) {
 
     if (--file->ref_count == 0) {
       if (file->inode) {
+        if ((file->inode->i_mode & S_IFMT) == S_IFCHR) {
+          (*cdevsw[major(file->inode->i_rdev)].d_close)(file->inode->i_rdev);
+        }
         iput(file->inode);
         file->inode = NULL;
       }
@@ -186,8 +189,10 @@ int sys_open(const char *filename, int flags, int mode) {
   file->flags |= flags;
   int error = namei(filename, &file->inode);
   if (error == -ENOENT && flags & O_CREAT) {
-    file_creat(filename, mode | S_IFREG, &file->inode);
-  } else if (error != 0) {
+    // file_creat check for write permission on parent directory and creates the file if it doesn't exist
+    error = file_creat(filename, mode | S_IFREG, &file->inode);
+  }
+  if (error != 0) {
     file_close(file);
     return error;
   }
@@ -197,6 +202,7 @@ int sys_open(const char *filename, int flags, int mode) {
     return -ENOENT;
   }
 
+  // Compare file permissions with requested access
   int request_mode = IREAD;
   if (flags & O_WRONLY)
     request_mode = IWRITE;
@@ -214,6 +220,15 @@ int sys_open(const char *filename, int flags, int mode) {
     iunlock(file->inode);
   } else if (flags & O_APPEND) {
     file->offset = file->inode->i_size;
+  }
+
+  // Call the character device open function if the file is a character device
+  if ((file->inode->i_mode & S_IFMT) == S_IFCHR) {
+    int err = (*cdevsw[major(file->inode->i_rdev)].d_open)(file->inode->i_rdev, flags);
+    if (err != 0) {
+      file_close(file);
+      return err;
+    }
   }
 
   return file_fd_alloc(cur_proc, file);
@@ -366,7 +381,7 @@ int ioctl(int fd, int op, void *ptr) {
   if (major(dev) < 0 || major(dev) >= num_cdev || cdevsw[major(dev)].tty == NULL)
     return -ENOTTY;
 
-  return cdevsw[major(dev)].ioctl(dev, op, ptr);
+  return cdevsw[major(dev)].d_ioctl(dev, op, ptr);
 }
 
 long file_seek(struct file *f, long offset, int whence) {

@@ -146,10 +146,10 @@ ssize_t readi(struct inode *inode, void *dst, long offset, size_t nbytes) {
 
   if ((inode->i_mode & S_IFMT) == S_IFCHR) {
     dev_t cdev = inode->i_direct[0];
-    if (major(cdev) >= num_cdev || cdevsw[major(cdev)].read == NULL) {
+    if (major(cdev) >= num_cdev || cdevsw[major(cdev)].d_read == NULL) {
       return -ENODEV;
     }
-    return cdevsw[major(cdev)].read(inode, cdev, dst, nbytes);
+    return cdevsw[major(cdev)].d_read(inode, cdev, dst, nbytes);
   }
 
   if ((inode->i_mode & S_IFMT) == S_IFBLK) {
@@ -214,10 +214,10 @@ ssize_t writei(struct inode *inode, const void *src, unsigned int offset, size_t
   ssize_t ret = 0;
   if ((inode->i_mode & S_IFMT) == S_IFCHR) {
     dev_t cdev = inode->i_direct[0];
-    if (major(cdev) >= num_cdev || cdevsw[major(cdev)].write == NULL) {
+    if (major(cdev) >= num_cdev || cdevsw[major(cdev)].d_write == NULL) {
       return -ENODEV;
     }
-    return cdevsw[major(cdev)].write(cdev, src, nbytes);
+    return cdevsw[major(cdev)].d_write(cdev, src, nbytes);
   } else if ((inode->i_mode & S_IFMT) == S_IFBLK) {
     panic("writei: block dev\n");
     // } else if ((inode->i_mode & S_IFMT) == S_IFREG) {

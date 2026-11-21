@@ -1,11 +1,11 @@
 #include <errno.h>
+#include <i386/uart.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/conf.h>
 #include <sys/ioctl.h>
 #include <sys/system.h>
 #include <sys/tty.h>
-#include <i386/uart.h>
 
 struct tty ttys[NTTY];
 
@@ -15,14 +15,40 @@ void tty_init() {
   }
 }
 
+int tty_open(dev_t dev, int flags) {
+  (void)flags;
+  if (major(dev) >= num_cdev)
+    return -ENODEV;
+
+  struct tty *tty = &cdevsw[major(dev)].tty[minor(dev)];
+  if (!tty)
+    return -ENODEV;
+
+  // Remember session's process group
+  tty->pgrp = cur_proc->pgrp;
+
+  return 0;
+}
+
+int tty_close(dev_t dev) {
+  if (major(dev) >= num_cdev)
+    return -ENODEV;
+
+  struct tty *tty = &cdevsw[major(dev)].tty[minor(dev)];
+  if (!tty)
+    return -ENODEV;
+
+  // Clear session's process group
+  tty->pgrp = 0;
+
+  return 0;
+}
+
 ssize_t tty_read(struct inode *inode, dev_t dev, void *buf, size_t count) {
   if (major(dev) >= num_cdev)
     return -ENODEV;
 
   struct tty *tty = &cdevsw[major(dev)].tty[minor(dev)];
-
-  // Remember session's process group
-  tty->pgrp = cur_proc->pgrp;
 
   char *dest = buf;
   char c = 0;

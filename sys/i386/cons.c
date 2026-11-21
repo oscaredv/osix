@@ -105,7 +105,7 @@ enum esc_state { ESC_NORMAL, ESC_START, ESC_BRACKET };
 
 int cn_putchar(dev_t dev, int c) {
 #if SERIAL_CONSOLE == 1
-  return uart_write(dev, &c, 1);
+  return tty_write(dev, &c, 1);
 #else
   (void)dev;
   static enum esc_state state = ESC_NORMAL;
@@ -168,6 +168,25 @@ int cn_putchar(dev_t dev, int c) {
     }
     break;
   }
+  return 0;
+#endif
+}
+
+int cn_open(dev_t dev, int flags) {
+#if SERIAL_CONSOLE == 1
+  return tty_open(dev, flags);
+#else
+  (void)dev;
+  (void)flags;
+  return 0;
+#endif
+}
+
+int cn_close(dev_t dev) {
+#if SERIAL_CONSOLE == 1
+  return tty_close(dev);
+#else
+  (void)dev;
   return 0;
 #endif
 }

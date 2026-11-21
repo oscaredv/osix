@@ -8,19 +8,21 @@
 struct buf;
 
 struct bdevsw {
-  char dev_name[16];
-  void (*read)(struct buf *);
-  void (*write)(struct buf *);
+  char d_name[16];
+  void (*d_read)(struct buf *);
+  void (*d_write)(struct buf *);
 };
 
 extern struct bdevsw bdevsw[];
 extern int num_bdev;
 
 struct cdevsw {
-  char dev_name[16];
-  ssize_t (*read)(struct inode *inode, dev_t dev, void *buf, size_t count);
-  ssize_t (*write)(dev_t dev, const void *buf, size_t count);
-  int (*ioctl)(dev_t dev, int op, void *ptr);
+  char d_name[16];
+  int (*d_open)(dev_t dev, int flags);
+  int (*d_close)(dev_t dev);
+  ssize_t (*d_read)(struct inode *inode, dev_t dev, void *buf, size_t count);
+  ssize_t (*d_write)(dev_t dev, const void *buf, size_t count);
+  int (*d_ioctl)(dev_t dev, int op, void *ptr);
   struct tty *tty;
 };
 
