@@ -34,10 +34,10 @@
 #define IWRITE 00002 // write permission
 #define IREAD 00004  // read permission
 
-#define S_ISDIR(m)  (((m) & S_IFMT) == S_IFDIR)
-#define S_ISREG(m)  (((m) & S_IFMT) == S_IFREG)
-#define S_ISBLK(m)  (((m) & S_IFMT) == S_IFBLK)
-#define S_ISCHR(m)  (((m) & S_IFMT) == S_IFCHR)
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#define S_ISBLK(m) (((m) & S_IFMT) == S_IFBLK)
+#define S_ISCHR(m) (((m) & S_IFMT) == S_IFCHR)
 #define S_ISFIFO(m) (((m) & S_IFMT) == S_IFIFO)
 
 struct stat {
@@ -49,6 +49,7 @@ struct stat {
   unsigned short st_gid;
   long st_size;
   time_t st_time;
+  dev_t st_rdev;
 
   unsigned short st_direct[7];
   unsigned short st_indirect;

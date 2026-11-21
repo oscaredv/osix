@@ -12,7 +12,7 @@
 #define NINDIRECT 512
 
 struct inode {
-  dev_t dev;
+  dev_t i_dev;
   unsigned int i_inodeno;
 
   unsigned int i_flags;
@@ -24,6 +24,7 @@ struct inode {
   unsigned short i_gid;
   time_t i_time;
   long i_size;
+  dev_t i_rdev;
   unsigned short i_direct[NDIRECT];
   unsigned short i_indirect;
   unsigned short i_dblindirect;

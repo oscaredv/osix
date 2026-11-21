@@ -7,6 +7,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/syslimits.h>
+#include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -85,7 +86,12 @@ void print_long(const char *base, const char *name, unsigned short ino) {
     printf(" %6d", st.st_gid);
   }
 
-  printf(" %6d", st.st_size);
+  // If block or character device, show major/minor numbers, otherwise show file size
+  if ((st.st_mode & S_IFMT) == S_IFBLK || (st.st_mode & S_IFMT) == S_IFCHR) {
+    printf(" %2d, %2d", major(st.st_rdev), minor(st.st_rdev));
+  } else {
+    printf(" %6d", st.st_size);
+  }
 
   struct tm *tm = gmtime(&st.st_time);
   printf(" %s %3d %02d:%02d", mname[tm->tm_mon], tm->tm_mday, tm->tm_hour, tm->tm_min);
@@ -117,11 +123,6 @@ void read_dir(int fd, struct dirinfo *entries[], int *entries_count) {
     if (dir.d_ino != 0 && (dir.d_name[0] != '.' || show_hidden)) {
       entries[*entries_count] = malloc(sizeof(struct dirinfo));
       memcpy(&entries[*entries_count]->dir, &dir, sizeof(struct dirent));
-      // int name_len = strlen(entries[*entries_count]->dir.d_name);
-      // entries[*entries_count]->name_len = name_len;
-      // if (name_len > max_name_len) {
-      //   max_name_len = name_len;
-      // }
       (*entries_count)++;
     }
   }

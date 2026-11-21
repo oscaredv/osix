@@ -124,7 +124,7 @@ int sys_unlink(const char *filepath) {
       *entry.d_name = 0;
       writei(parent, &entry, offset, sizeof(entry));
 
-      struct inode *inode = iget(parent->dev, inodeno);
+      struct inode *inode = iget(parent->i_dev, inodeno);
       if (!inode)
         panic("unlink: inode==NULL");
 
@@ -358,7 +358,7 @@ int ioctl(int fd, int op, void *ptr) {
     return -ENOTTY;
 
   struct inode *inode = cur_proc->ofile[fd]->inode;
-  dev_t dev = inode->dev;
+  dev_t dev = inode->i_dev;
 
   if ((inode->i_mode & S_IFMT) == S_IFCHR)
     dev = inode->i_direct[0];

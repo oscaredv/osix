@@ -18,7 +18,7 @@ struct inode inodes[NUM_INODES];
 void inode_init() {
   for (int i = 0; i < NUM_INODES; i++) {
     struct inode *inode = &inodes[i];
-    inode->dev = -1;
+    inode->i_dev = -1;
     inode->i_flags = 0;
     inode->i_refcount = 0;
   }
@@ -34,7 +34,7 @@ struct inode *iget(dev_t dev, unsigned int inodeno) {
   // Is inode already in cache?
   int i = 0;
   while (i < NUM_INODES) {
-    if (inodes[i].dev == dev && inodes[i].i_inodeno == inodeno) {
+    if (inodes[i].i_dev == dev && inodes[i].i_inodeno == inodeno) {
       struct inode *inode = &inodes[i];
 
       if (inode->i_flags & I_LOCK) {
@@ -67,7 +67,7 @@ struct inode *iget(dev_t dev, unsigned int inodeno) {
     panic("inode cache full!");
 
   // Reserve and lock inode before reading from disk, because I/O will lead to context switch
-  inode->dev = dev;
+  inode->i_dev = dev;
   inode->i_inodeno = inodeno;
   inode->i_refcount = 1;
   inode->i_flags = I_LOCK;
@@ -86,6 +86,12 @@ struct inode *iget(dev_t dev, unsigned int inodeno) {
   inode->i_gid = dinode->di_gid;
   inode->i_time = dinode->di_time;
   inode->i_size = dinode->di_size;
+  // Is block or character device, set i_rdev
+  if ((inode->i_mode & S_IFMT) == S_IFBLK || (inode->i_mode & S_IFMT) == S_IFCHR) {
+    inode->i_rdev = dinode->di_zone[0];
+  } else {
+    inode->i_rdev = 0;
+  }
   for (int b = 0; b < NDIRECT; b++) {
     inode->i_direct[b] = dinode->di_zone[b];
   }
@@ -105,7 +111,7 @@ unsigned int bmap(struct inode *inode, unsigned int index, int flags) {
   if (index < NDIRECT) {
     // Direct zone
     if (flags & B_WRITE && inode->i_direct[index] == 0) {
-      inode->i_direct[index] = balloc(inode->dev);
+      inode->i_direct[index] = balloc(inode->i_dev);
       inode->i_flags |= I_DIRTY;
     }
 
@@ -113,15 +119,15 @@ unsigned int bmap(struct inode *inode, unsigned int index, int flags) {
   } else if (index < (NDIRECT + NINDIRECT)) {
     // Indirect zone
     if (flags & B_WRITE && inode->i_indirect == 0) {
-      inode->i_indirect = balloc(inode->dev);
+      inode->i_indirect = balloc(inode->i_dev);
       inode->i_flags |= I_DIRTY;
     }
 
     if (inode->i_indirect) {
-      struct buf *indirect = bread(inode->dev, inode->i_indirect);
+      struct buf *indirect = bread(inode->i_dev, inode->i_indirect);
       uint16_t *blocks = indirect->data;
       if (blocks[index - NDIRECT] == 0) {
-        blocks[index - NDIRECT] = balloc(inode->dev);
+        blocks[index - NDIRECT] = balloc(inode->i_dev);
         bwrite(indirect);
       }
       block_no = blocks[index - NDIRECT];
@@ -187,7 +193,7 @@ ssize_t readi(struct inode *inode, void *dst, long offset, size_t nbytes) {
     unsigned int block_no = bmap(inode, bindex, B_READ);
     unsigned int seg_size = MIN(BLOCK_SIZE - offset, remaining);
 
-    struct buf *buf = bread(inode->dev, block_no);
+    struct buf *buf = bread(inode->i_dev, block_no);
     memcpy(dst, buf->data + offset, seg_size);
 
     offset = 0;
@@ -227,7 +233,7 @@ ssize_t writei(struct inode *inode, const void *src, unsigned int offset, size_t
       unsigned int block_no = bmap(inode, bindex, B_WRITE);
       unsigned int seg_size = MIN(BLOCK_SIZE - offset, remaining);
 
-      struct buf *buf = bread(inode->dev, block_no);
+      struct buf *buf = bread(inode->i_dev, block_no);
       memcpy(buf->data + offset, src, seg_size);
       bwrite(buf);
       brelse(buf);
@@ -289,7 +295,7 @@ void iupdate(struct inode *inode) {
 
   unsigned int block_no = inode_block(inode->i_inodeno);
   unsigned int inode_index = inode_offset(inode->i_inodeno);
-  struct buf *buf = bread(inode->dev, block_no);
+  struct buf *buf = bread(inode->i_dev, block_no);
   struct minix_inode *dinode = (struct minix_inode *)buf->data + inode_index;
 
   dinode->di_mode = inode->i_mode;
@@ -317,20 +323,20 @@ void itrunc(struct inode *inode) {
 
   for (int i = 0; i < NDIRECT; i++) {
     if (inode->i_direct[i]) {
-      bfree(inode->dev, inode->i_direct[i]);
+      bfree(inode->i_dev, inode->i_direct[i]);
       inode->i_direct[i] = 0;
     }
   }
 
   if (inode->i_indirect) {
-    struct buf *buf = bread(inode->dev, inode->i_indirect);
+    struct buf *buf = bread(inode->i_dev, inode->i_indirect);
     uint16_t *blocks = (uint16_t *)buf->data;
     for (int i = 0; i < NINDIRECT; i++) {
       if (blocks[i])
-        bfree(inode->dev, blocks[i]);
+        bfree(inode->i_dev, blocks[i]);
     }
     brelse(buf);
-    bfree(inode->dev, inode->i_indirect);
+    bfree(inode->i_dev, inode->i_indirect);
     inode->i_indirect = 0;
   }
 
@@ -347,7 +353,7 @@ void iput(struct inode *inode) {
     ilock(inode);
     itrunc(inode);
     iunlock(inode);
-    ifree(inode->dev, inode->i_inodeno);
+    ifree(inode->i_dev, inode->i_inodeno);
 
     inode->i_flags |= I_DIRTY;
     iupdate(inode);
@@ -414,7 +420,7 @@ int nameicore(const char *path, char *name, struct inode **inodep, char parent) 
     for (unsigned d = 0; d < ndirent; d++) {
       int len = strlen(dir[d].d_name);
       if (dir[d].d_ino != 0 && len == (e - p) && strncmp(dir[d].d_name, p, len) == 0) {
-        next_inode = iget((*inodep)->dev, dir[d].d_ino);
+        next_inode = iget((*inodep)->i_dev, dir[d].d_ino);
         break;
       }
     }
@@ -483,7 +489,7 @@ int chdir(const char *path) {
 }
 
 void istat(struct inode *inode, struct stat *st) {
-  st->st_dev = inode->dev;
+  st->st_dev = inode->i_dev;
   st->st_ino = inode->i_inodeno;
   st->st_mode = inode->i_mode;
   st->st_nlink = inode->i_nlinks;
@@ -495,6 +501,7 @@ void istat(struct inode *inode, struct stat *st) {
     st->st_direct[b] = inode->i_direct[b];
   st->st_indirect = inode->i_indirect;
   st->st_dblindirect = inode->i_dblindirect;
+  st->st_rdev = inode->i_rdev;
 }
 
 struct inode *ialloc(int mode) {
