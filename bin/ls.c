@@ -21,6 +21,7 @@ char multiple = 0;
 char first = 1;
 char last_was_dir = 0;
 char colorize = 1;
+char classify = 0;
 
 enum sort_type { SORT_OFF, SORT_NAME, SORT_SIZE, SORT_TIME };
 enum sort_type sort_by = SORT_NAME;
@@ -47,6 +48,20 @@ void entry_color(struct stat *st) {
     } else if (st->st_mode & S_IXUSR) {
       printf("\033[32m"); // Green for executable
     }
+  }
+}
+
+void print_classify(struct stat *st) {
+  if ((st->st_mode & S_IFMT) == S_IFDIR) {
+    printf("/");
+  } else if (st->st_mode & S_IXUSR) {
+    printf("*");
+  } else if ((st->st_mode & S_IFMT) == S_IFLNK) {
+    printf("@");
+  } else if ((st->st_mode & S_IFMT) == S_IFIFO) {
+    printf("|");
+  } else if ((st->st_mode & S_IFMT) == S_IFSOCK) {
+    printf("=");
   }
 }
 
@@ -105,10 +120,14 @@ void print_long(const char *name, struct stat *st) {
   if (colorize) {
     entry_color(st);
   }
-  printf("%s\n", name);
+  printf("%s", name);
   if (colorize) {
     printf("\033[0m");
   }
+  if (classify) {
+    print_classify(st);
+  }
+  printf("\n");
 }
 
 int compare_dirinfo(const void *a, const void *b) {
@@ -187,6 +206,10 @@ void print_entries(struct dirinfo *entries[], int entries_count, int max_name_le
       if (colorize) {
         printf("\033[0m");
       }
+      if (classify) {
+        print_classify(&entries[i]->st);
+      }
+
       if (single_col) {
         printf("\n");
       } else {
@@ -265,6 +288,9 @@ int ls(const char *name) {
       if (colorize) {
         printf("\033[0m");
       }
+      if (classify) {
+        print_classify(&st);
+      }
       printf("\n");
     }
   }
@@ -272,7 +298,7 @@ int ls(const char *name) {
 }
 
 void usage() {
-  fprintf(stderr, "usage: ls [-lai1rSUtG] [DIR...]\n");
+  fprintf(stderr, "usage: ls [-lai1rSUtGF] [DIR...]\n");
   exit(EXIT_SUCCESS);
 }
 
@@ -312,6 +338,9 @@ int main(int argc, char **argv) {
         break;
       case 'G':
         colorize = !colorize;
+        break;
+      case 'F':
+        classify = 1;
         break;
       case 'h':
         usage();

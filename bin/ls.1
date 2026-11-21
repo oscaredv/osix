@@ -39,6 +39,10 @@ Toggle colorization of file names. Enabled by default if
 .I stdin
 is terminal
 .TP
+.B \-F
+Classify directory entries by appending a letter to the name. Postfix '/' for directories, '*' for executables, '@' for symbolic links,
+'|' for FIFOs, '=' for sockets and nothing for regular files.
+.TP
 .B \-h
 Print the usage help text
 .SH FILES
