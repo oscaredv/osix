@@ -20,7 +20,6 @@ struct cdevsw {
   char dev_name[16];
   ssize_t (*read)(struct inode *inode, dev_t dev, void *buf, size_t count);
   ssize_t (*write)(dev_t dev, const void *buf, size_t count);
-  int (*putchar)(dev_t dev, int c);
   int (*ioctl)(dev_t dev, int op, void *ptr);
   struct tty *tty;
 };

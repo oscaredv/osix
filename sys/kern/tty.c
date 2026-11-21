@@ -5,6 +5,7 @@
 #include <sys/ioctl.h>
 #include <sys/system.h>
 #include <sys/tty.h>
+#include <i386/uart.h>
 
 struct tty ttys[NTTY];
 
@@ -95,17 +96,10 @@ ssize_t tty_read(struct inode *inode, dev_t dev, void *buf, size_t count) {
 }
 
 ssize_t tty_write(dev_t dev, const void *buf, size_t count) {
-  if (major(dev) >= num_cdev || cdevsw[major(dev)].putchar == NULL)
+  if (major(dev) >= num_cdev)
     return -ENODEV;
 
-  const char *p = buf;
-  for (size_t i = 0; i < count; i++) {
-    int len = cdevsw[major(dev)].putchar(dev, *p++);
-    if (len < 0)
-      return len;
-  }
-
-  return count;
+  return uart_write(dev, buf, count);
 }
 
 void tty_input(dev_t dev, char c) {

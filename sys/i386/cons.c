@@ -7,6 +7,7 @@
 #include <i386/uart.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/tty.h>
 
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
@@ -104,7 +105,7 @@ enum esc_state { ESC_NORMAL, ESC_START, ESC_BRACKET };
 
 int cn_putchar(dev_t dev, int c) {
 #if SERIAL_CONSOLE == 1
-  return uart_putchar(dev, c);
+  return uart_write(dev, &c, 1);
 #else
   (void)dev;
   static enum esc_state state = ESC_NORMAL;
@@ -172,17 +173,25 @@ int cn_putchar(dev_t dev, int c) {
 }
 
 ssize_t cn_read(struct inode *inode, dev_t dev, void *buf, size_t nbytes) {
+#if SERIAL_CONSOLE == 1
+  return tty_read(inode, dev, buf, nbytes);
+#else
   (void)dev;
   return kb_read(inode, buf, nbytes);
+#endif
 }
 
 ssize_t cn_write(dev_t dev, const void *buf, size_t nbytes) {
+#if SERIAL_CONSOLE == 1
+  return tty_write(dev, buf, nbytes);
+#else
   (void)dev;
   const char *p = (const char *)buf;
   for (size_t c = 0; c < nbytes; c++) {
     cn_putchar(dev, p[c]);
   }
   return nbytes;
+#endif
 }
 
 void cn_clear(void) {
