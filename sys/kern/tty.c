@@ -122,10 +122,17 @@ ssize_t tty_read(struct inode *inode, dev_t dev, void *buf, size_t count) {
 }
 
 ssize_t tty_write(dev_t dev, const void *buf, size_t count) {
-  if (major(dev) >= num_cdev)
+  if (major(dev) >= num_cdev || cdevsw[major(dev)].d_putchar == NULL)
     return -ENODEV;
 
-  return uart_write(dev, buf, count);
+  const char *p = buf;
+  for (size_t i = 0; i < count; i++) {
+    int len = cdevsw[major(dev)].d_putchar(dev, *p++);
+    if (len < 0)
+      return len;
+  }
+
+  return count;
 }
 
 void tty_input(dev_t dev, char c) {

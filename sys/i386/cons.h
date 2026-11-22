@@ -13,6 +13,8 @@ void cn_clear(void);
 int cn_open(dev_t dev, int flags);
 int cn_close(dev_t dev);
 
+int cn_putchar(dev_t dev, int c);
+
 ssize_t cn_read(struct inode *inode, dev_t dev, void *buf, size_t count);
 ssize_t cn_write(dev_t dev, const void *buf, size_t count);
 

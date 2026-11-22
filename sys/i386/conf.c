@@ -42,9 +42,9 @@ int null_close(dev_t dev) {
   return 0;
 }
 
-struct cdevsw cdevsw[] = {{"null", null_open, null_close, null_read, null_write, NULL, NULL},
-                          {"console", cn_open, cn_close, cn_read, cn_write, tty_ioctl, &ttys[0]},
-                          {"zero", null_open, null_close, zero_read, null_write, NULL, NULL},
-                          {"tty", tty_open, tty_close, tty_read, tty_write, tty_ioctl, &ttys[1]}};
+struct cdevsw cdevsw[] = {{"null", null_open, null_close, null_read, null_write, NULL, NULL, NULL},
+                          {"console", cn_open, cn_close, tty_read, tty_write, cn_putchar, tty_ioctl, &ttys[0]},
+                          {"zero", null_open, null_close, zero_read, null_write, NULL, NULL, NULL},
+                          {"tty", tty_open, tty_close, tty_read, tty_write, uart_putchar, tty_ioctl, &ttys[1]}};
 
 int num_cdev = sizeof(cdevsw) / sizeof(struct cdevsw);

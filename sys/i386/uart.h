@@ -20,4 +20,6 @@ void serial_console_init();
 ssize_t uart_read(struct inode *inode, dev_t dev, void *buf, size_t count);
 ssize_t uart_write(dev_t dev, const void *buf, size_t count);
 
+int uart_putchar(dev_t dev, int c);
+
 #endif

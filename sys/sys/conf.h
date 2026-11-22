@@ -22,6 +22,7 @@ struct cdevsw {
   int (*d_close)(dev_t dev);
   ssize_t (*d_read)(struct inode *inode, dev_t dev, void *buf, size_t count);
   ssize_t (*d_write)(dev_t dev, const void *buf, size_t count);
+  int (*d_putchar)(dev_t dev, int c);
   int (*d_ioctl)(dev_t dev, int op, void *ptr);
   struct tty *tty;
 };

@@ -177,3 +177,19 @@ ssize_t uart_write(dev_t dev, const void *buf, size_t count) {
   }
   return count;
 }
+
+int uart_putchar(dev_t dev, int c) {
+  if (minor(dev) >= SERIAL_PORTS || uart_devsw[minor(dev)].port == 0)
+    return -ENODEV;
+
+  uart_t *uart = &uart_devsw[minor(dev)];
+
+  if (c == '\n')
+    uart_putchar(dev, '\r');
+
+  while (inb(LINE_STATUS_REGISTER(uart->port)) == 0)
+    ;
+  outb(c, DATA_REGISTER(uart->port));
+
+  return c;
+}
