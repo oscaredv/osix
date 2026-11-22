@@ -35,6 +35,9 @@ int fork() {
   if (child->pgrp == 0)
     child->pgrp = child->pid;
 
+  // Inherit process command name
+  strncpy(child->command, cur_proc->command, sizeof(child->command));
+
   // Inherit credentials
   child->uid = cur_proc->uid;
   child->gid = cur_proc->gid;
