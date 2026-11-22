@@ -1,7 +1,7 @@
 #include <ctype.h>
 #include <dirent.h>
-#include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
@@ -10,9 +10,11 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <termios.h>
 #include <unistd.h>
 
 #define MAX_LINE 1024
+#define HISTORY_MAX_SIZE 16
 #define PROMPT_MAX_SIZE 16
 #define MAX_ARGS 256
 #define MAX_CMDS 16
@@ -37,6 +39,8 @@ struct Pipeline pipelines[MAX_PIPES];
 int pipelines_count;
 
 char prompt[PROMPT_MAX_SIZE] = "$ ";
+
+int interactive = 1;
 
 void set_var(const char *name, const char *value) {
   // TODO: unsetting variables
@@ -319,7 +323,9 @@ char *parse_redir(struct Command *cmd, char *p) {
 
 void sighandler(int signum) {
   (void)signum;
-  printf("^C\n");
+
+  if (interactive)
+    printf("^C\n");
 }
 
 void copy_token(char *dst, const char *src, int len) {
@@ -418,6 +424,8 @@ void tokenize(char *cmdline) {
 }
 
 void debug_dump(struct Pipeline *pipeline) {
+  if (!interactive)
+    return;
   printf("Pipeline:\n");
   for (int c = 0; c < pipeline->cmds_count; c++) {
     printf("  Command %d:\n", c);
@@ -479,11 +487,259 @@ void truncate_comments(char *cmdline) {
   }
 }
 
+void canonical_mode() {
+  if (!interactive)
+    return;
+  struct termios cooked;
+  tcgetattr(STDIN_FILENO, &cooked);
+  cooked.c_lflag |= ECHO | ICANON;
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &cooked);
+}
+
+void cbreak_mode() {
+  if (!interactive)
+    return;
+  struct termios raw;
+  tcgetattr(STDIN_FILENO, &raw);
+  raw.c_lflag &= ~(ECHO | ICANON);
+  raw.c_lflag |= ISIG;
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
+
+void redraw(const char *prompt, const char *cmdline, int cursor_pos, int cmdline_len) {
+  if (!interactive)
+    return;
+  printf("\r\033[2K%s%s ", prompt, cmdline);
+  for (int i = cursor_pos; i <= cmdline_len; i++) {
+    printf("\b");
+  }
+  fflush(stdout);
+}
+
+void execute_command(char *cmdline) {
+  truncate_comments(cmdline);
+  reset_pipelines();
+  tokenize(cmdline);
+
+  for (int p = 0; p < pipelines_count; p++) {
+    glob(&pipelines[p]);
+    expand_variables(&pipelines[p]);
+    // debug_dump(&pipelines[p]);
+    exec_pipeline(&pipelines[p]);
+    wait_for_children(&pipelines[p]);
+    free_pipeline(&pipelines[p]);
+  }
+}
+
+void insert(char *cmdline, char c, int *cursor_pos, int *cmdline_size) {
+  for (int t = *cmdline_size; t > *cursor_pos; t--) {
+    cmdline[t] = cmdline[t - 1];
+  }
+  cmdline[*cursor_pos] = c;
+  (*cursor_pos)++;
+  (*cmdline_size)++;
+  cmdline[*cmdline_size] = 0;
+}
+
+void delete_word(char *cmdline, int *cursor_pos, int *cmdline_size) {
+  while (*cursor_pos > 0 && cmdline[*cursor_pos - 1] == ' ') {
+    (*cursor_pos)--;
+    (*cmdline_size)--;
+  }
+  while (*cursor_pos > 0 && cmdline[*cursor_pos - 1] != ' ') {
+    (*cursor_pos)--;
+    (*cmdline_size)--;
+  }
+  for (int t = *cursor_pos; t < *cmdline_size; t++) {
+    cmdline[t] = cmdline[t + 1];
+  }
+  cmdline[*cmdline_size] = 0;
+}
+
+void delete_char(char *cmdline, int *cursor_pos, int *cmdline_size) {
+  if (*cursor_pos > 0) {
+    (*cursor_pos)--;
+    (*cmdline_size)--;
+    for (int t = *cursor_pos; t < *cmdline_size; t++) {
+      cmdline[t] = cmdline[t + 1];
+    }
+    cmdline[*cmdline_size] = 0;
+  }
+}
+
+void clear_line(char *cmdline, int *cursor_pos, int *cmdline_size) {
+  *cursor_pos = 0;
+  *cmdline_size = 0;
+  cmdline[0] = 0;
+}
+
+void history_save(const char *cmdline, const char **history, int *history_index, int *history_size) {
+  // Only save non-empty commands that are not duplicates of the last entry
+  if (cmdline[0] != 0) {
+    if (*history_size == 0 || strcmp(history[*history_size - 1], cmdline) != 0) {
+      if (*history_size == HISTORY_MAX_SIZE) {
+        free((void *)history[0]);
+        for (int j = 1; j < HISTORY_MAX_SIZE; j++) {
+          history[j - 1] = history[j];
+        }
+        (*history_size)--;
+      }
+      history[(*history_size)++] = strdup(cmdline);
+    }
+  }
+  *history_index = *history_size;
+}
+
+void history_copy(char *cmdline, const char **history, int history_index, int history_size, int *cursor_pos,
+                  int *cmdline_size) {
+  if (history_index == history_size) {
+    cmdline[0] = 0;
+    *cmdline_size = *cursor_pos = 0;
+  } else {
+    strncpy(cmdline, history[history_index], MAX_LINE);
+    *cmdline_size = *cursor_pos = strlen(cmdline);
+  }
+}
+
+void delete(char *cmdline, int cursor_pos, int *cmdline_size) {
+  for (int t = cursor_pos; t < *cmdline_size - 1; t++) {
+    cmdline[t] = cmdline[t + 1];
+  }
+  (*cmdline_size)--;
+  cmdline[*cmdline_size] = 0;
+}
+
+int compare(const void *a, const void *b) { return strcmp(*(const char **)a, *(const char **)b); }
+
+void find_matches(const char *dirname, const char *needle, char **matches, int *matches_size) {
+  int needle_len = strlen(needle);
+
+  int fd = open(dirname, O_RDONLY);
+  if (fd != -1) {
+    struct dirent dir;
+    while (read(fd, &dir, sizeof(struct dirent)) == sizeof(struct dirent)) {
+      if (dir.d_ino != 0 && dir.d_name[0] != '.') {
+        if (needle_len == 0 || strncmp(dir.d_name, needle, needle_len) == 0) {
+
+          struct stat st;
+          char filename[PATH_MAX] = {0};
+          snprintf(filename, PATH_MAX, "%s/%s", dirname, dir.d_name);
+          if (stat(filename, &st) == 0 && S_ISDIR(st.st_mode)) {
+            snprintf(filename, PATH_MAX, "%s/", dir.d_name);
+            matches[(*matches_size)++] = strdup(filename);
+          } else {
+            matches[(*matches_size)++] = strdup(dir.d_name);
+          }
+        }
+      }
+    }
+    close(fd);
+  }
+}
+
+unsigned int find_forward_match_end(unsigned int forward_match_start, char **matches, int matches_size) {
+  if (matches_size == 0)
+    return forward_match_start;
+
+  unsigned int end = strlen(matches[0]);
+  for (int m = 1; m < matches_size; m++) {
+    unsigned int f = forward_match_start;
+    while (matches[0][f] && matches[m][f] && matches[0][f] == matches[m][f] && matches[m][f] != '/')
+      f++;
+
+    if (f < end) {
+      end = f;
+    }
+  }
+  return end;
+}
+
+void complete_file(int path_start, int word_start, unsigned int forward_match_start, char *cmdline, int *cursor_pos,
+                   int *cmdline_size) {
+  char needle[PATH_MAX];
+  char path[PATH_MAX];
+  strncpy(path, cmdline + path_start, word_start - path_start);
+  path[word_start - path_start] = 0;
+  if (*path == 0)
+    strncpy(path, "./", PATH_MAX);
+  strncpy(needle, cmdline + word_start, *cursor_pos - word_start);
+  needle[*cursor_pos - word_start] = '\0';
+
+  char *matches[64];
+  int matches_size = 0;
+  find_matches(path, basename(needle), matches, &matches_size);
+
+  if (matches_size > 0) {
+    qsort(matches, matches_size, sizeof(char *), compare);
+
+    unsigned int forward_match_end = find_forward_match_end(forward_match_start, matches, matches_size);
+    if (forward_match_end > forward_match_start) {
+      // Add forward matching characters
+      for (unsigned int f = forward_match_start; f < forward_match_end; f++) {
+        insert(cmdline, matches[0][f], cursor_pos, cmdline_size);
+      }
+
+      if (forward_match_end == strlen(matches[0]) && matches[0][forward_match_end - 1] != '/') {
+        insert(cmdline, ' ', cursor_pos, cmdline_size);
+      }
+    } else {
+      // Print matches
+      printf("\n\033[2K");
+      for (int i = 0; i < matches_size; i++) {
+        printf("%s ", matches[i]);
+      }
+      printf("\n");
+    }
+  }
+
+  for (int i = 0; i < matches_size; i++) {
+    free(matches[i]);
+  }
+}
+
+void complete_command(int start_pos, unsigned int forward_match_start, char *cmdline, int *cursor_pos,
+                      int *cmdline_size) {
+  int matches_size = 0;
+  char *matches[64];
+  char *path = strdup(getenv("PATH"));
+  char needle[PATH_MAX];
+  strncpy(needle, cmdline + start_pos, *cursor_pos - start_pos);
+  needle[*cursor_pos - start_pos] = '\0';
+
+  char *token = strtok(path, ":");
+  while (token) {
+    find_matches(token, needle, matches, &matches_size);
+    token = strtok(NULL, ":");
+  }
+
+  if (matches_size > 0) {
+    qsort(matches, matches_size, sizeof(char *), compare);
+
+    unsigned int forward_match_end = find_forward_match_end(forward_match_start, matches, matches_size);
+    if (forward_match_end > forward_match_start) {
+      // Add forward matching characters
+      for (unsigned int f = forward_match_start; f < forward_match_end; f++) {
+        insert(cmdline, matches[0][f], cursor_pos, cmdline_size);
+      }
+      if (forward_match_end == strlen(matches[0])) {
+        insert(cmdline, ' ', cursor_pos, cmdline_size);
+      }
+    } else {
+      // Print matches
+      printf("\n\033[2K");
+      for (int i = 0; i < matches_size; i++) {
+        printf("%s ", matches[i]);
+      }
+      printf("\n");
+    }
+  }
+  free(path);
+}
+
 int main(int argc, char *argv[]) {
   signal(SIGINT, sighandler);
 
   FILE *input = stdin;
-  int interactive = 1;
 
   if (argc >= 2) {
     if (strcmp(argv[1], "-") != 0) {
@@ -500,32 +756,178 @@ int main(int argc, char *argv[]) {
     strncpy(prompt, "# ", PROMPT_MAX_SIZE);
   }
 
+  atexit(canonical_mode);
+
   // TODO: IFS handling: Support for setting and using IFS to control word splitting behavior
   // TODO: Sub shell $(cmd): Execute cmd in a subshell and replace with its output
   char cmdline[MAX_LINE];
+  const char *history[HISTORY_MAX_SIZE] = {};
+  int history_index = 0;
+  int history_size = 0;
+
+  int cursor_pos = 0;
+  int cmdline_size = 0;
+  cmdline[0] = 0;
+  redraw(prompt, cmdline, cursor_pos, cmdline_size);
+
+  cbreak_mode();
+
   while (1) {
-    if (interactive) {
-      printf("%s", prompt);
-      fflush(stdout);
-    }
-
-    // Read command line
-    char *ret = fgets(cmdline, sizeof(cmdline), input);
-    if (ret == NULL) {
-      // Exit on EOF or read error
+    int c = fgetc(input);
+    if (c == EOF)
       break;
-    }
-    truncate_comments(cmdline);
-    reset_pipelines();
-    tokenize(cmdline);
 
-    for (int p = 0; p < pipelines_count; p++) {
-      glob(&pipelines[p]);
-      expand_variables(&pipelines[p]);
-      // debug_dump(&pipelines[p]);
-      exec_pipeline(&pipelines[p]);
-      wait_for_children(&pipelines[p]);
-      free_pipeline(&pipelines[p]);
+    if (c == 27) {
+      c = fgetc(input);
+      if (c == EOF)
+        break;
+
+      if (c == 91) {
+        c = fgetc(input);
+        if (c == EOF)
+          break;
+
+        if (c == 51) {
+          c = fgetc(input);
+          if (c == EOF)
+            break;
+
+          if (c == 126) { // Delete
+            if (cursor_pos < cmdline_size) {
+              delete(cmdline, cursor_pos, &cmdline_size);
+              redraw(prompt, cmdline, cursor_pos, cmdline_size);
+            }
+          }
+        } else if (c == 65) { // Up arrow
+          if (history_index > 0) {
+            history_index--;
+            history_copy(cmdline, history, history_index, history_size, &cursor_pos, &cmdline_size);
+            redraw(prompt, cmdline, cursor_pos, cmdline_size);
+          }
+        } else if (c == 66) { // Down arrow
+          if (history_index < history_size) {
+            history_index++;
+            history_copy(cmdline, history, history_index, history_size, &cursor_pos, &cmdline_size);
+            redraw(prompt, cmdline, cursor_pos, cmdline_size);
+          }
+        } else if (c == 67) { // Right arrow
+          if (cursor_pos < cmdline_size) {
+            cursor_pos++;
+            if (interactive) {
+              printf("\033[C");
+              fflush(stdout);
+            }
+          }
+        } else if (c == 68) { // Left arrow
+          if (cursor_pos > 0) {
+            cursor_pos--;
+            if (interactive) {
+              printf("\b");
+              fflush(stdout);
+            }
+          }
+        } else if (c == 72) { // Home key
+          cursor_pos = 0;
+          redraw(prompt, cmdline, cursor_pos, cmdline_size);
+        } else if (c == 70) { // End key
+          cursor_pos = cmdline_size;
+          redraw(prompt, cmdline, cursor_pos, cmdline_size);
+        }
+      }
+    } else if (c == 12) { // Ctrl+L, clear screen
+      if (interactive) {
+        printf("\033[H\033[J");
+        redraw(prompt, cmdline, cursor_pos, cmdline_size);
+      }
+    } else if (c == 4) { // Ctrl+D, end of input
+      break;
+    } else if (c == 9) { // Tab key
+      int i = 0;
+      // skip leading spaces before the cursor
+      while (cmdline[i] == ' ' && i < cursor_pos)
+        i++;
+
+      // count words before the cursor
+      int word_count = 0;
+      int word_start = 0;
+      int word_char = 0;
+      int path_start = 0;
+      while (i < cursor_pos) {
+        word_start = i;
+        word_char = 0;
+        while (i < cursor_pos && cmdline[i] != ' ' && cmdline[i] != '/') {
+          i++;
+          word_char++;
+        }
+
+        if (cmdline[i] == '/') {
+          i++;
+          word_start = i;
+        }
+        word_count++;
+
+        while (i < cursor_pos && cmdline[i] == ' ') {
+          i++;
+          path_start = i;
+        }
+      }
+      if (word_start < path_start) {
+        word_start = path_start;
+        word_count++;
+      }
+
+      unsigned int forward_match_start = word_char;
+      if (word_count < 2) {
+        // Complete command
+        complete_command(word_start, forward_match_start, cmdline, &cursor_pos, &cmdline_size);
+      } else {
+        // Complete file
+        complete_file(path_start, word_start, forward_match_start, cmdline, &cursor_pos, &cmdline_size);
+      }
+      redraw(prompt, cmdline, cursor_pos, cmdline_size);
+    } else if (c == 0x17) { // Ctrl+W, delete word before cursor
+      delete_word(cmdline, &cursor_pos, &cmdline_size);
+      redraw(prompt, cmdline, cursor_pos, cmdline_size);
+    } else if (c == 127) { // Backspace
+      delete_char(cmdline, &cursor_pos, &cmdline_size);
+      redraw(prompt, cmdline, cursor_pos, cmdline_size);
+    } else if (c == 21) { // Ctrl+U, clear line
+      clear_line(cmdline, &cursor_pos, &cmdline_size);
+      redraw(prompt, cmdline, cursor_pos, cmdline_size);
+    } else if (c == 1) { // Ctrl+A, move cursor to beginning of line
+      cursor_pos = 0;
+      redraw(prompt, cmdline, cursor_pos, cmdline_size);
+    } else if (c == 5) { // Ctrl+E, move cursor to end of line
+      cursor_pos = cmdline_size;
+      redraw(prompt, cmdline, cursor_pos, cmdline_size);
+    } else if (c == '\n' || c == '\r') {
+      // Not an escape sequence, handle normally
+      if (interactive) {
+        printf("\n");
+        fflush(stdout);
+      }
+
+      history_save(cmdline, history, &history_index, &history_size);
+      canonical_mode();
+      execute_command(cmdline);
+      cbreak_mode();
+
+      cmdline[0] = 0;
+      cmdline_size = cursor_pos = 0;
+      redraw(prompt, cmdline, cursor_pos, cmdline_size);
+    } else if (isprint(c)) {
+      if (cursor_pos == cmdline_size) {
+        insert(cmdline, c, &cursor_pos, &cmdline_size);
+        if (interactive) {
+          printf("%c", c);
+          fflush(stdout);
+        }
+      } else {
+        insert(cmdline, c, &cursor_pos, &cmdline_size);
+        redraw(prompt, cmdline, cursor_pos, cmdline_size);
+      }
+    } else {
+      // Unhandled character, ignore it
     }
   }
 
