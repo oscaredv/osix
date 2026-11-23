@@ -46,7 +46,7 @@ void cn_init(void) {
 #if SERIAL_CONSOLE == 1
   serial_console_init();
 #else
-  cn_color = (VGA_COLOR_LIGHT_GREEN << 8) | (VGA_COLOR_BLACK << 12);
+  cn_color = (VGA_COLOR_WHITE << 8) | (VGA_COLOR_BLACK << 12);
   cn_buffer = (uint16_t *)P2V(0xB8000);
 
   // Read cursor position and set console row accordingly
@@ -156,6 +156,40 @@ int cn_putchar(dev_t dev, int c) {
         case 'f':
           if (args_count == 2)
             cn_goto(args[1], args[0]);
+          break;
+        case 'm':
+          // Set graphics rendition (colors, bold, etc.)
+          if (args_count == 1) {
+            switch (args[0]) {
+            case 30:
+              cn_color = VGA_COLOR_BLACK;
+              break;
+            case 31:
+              cn_color = VGA_COLOR_RED;
+              break;
+            case 32:
+              cn_color = VGA_COLOR_GREEN;
+              break;
+            case 33:
+              cn_color = VGA_COLOR_LIGHT_BROWN;
+              break;
+            case 34:
+              cn_color = VGA_COLOR_LIGHT_BLUE;
+              break;
+            case 35:
+              cn_color = VGA_COLOR_MAGENTA;
+              break;
+            case 36:
+              cn_color = VGA_COLOR_CYAN;
+              break;
+            default:
+            case 0:
+              cn_color = VGA_COLOR_WHITE;
+              break;
+            }
+            cn_color <<= 8;
+            cn_color |= VGA_COLOR_BLACK << 12;
+          }
           break;
         default:
           break;
