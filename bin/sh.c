@@ -777,17 +777,17 @@ int main(int argc, char *argv[]) {
     if (c == EOF)
       break;
 
-    if (c == 27) {
+    if (c == 27) { // Escape character, start of an escape sequence
       c = fgetc(input);
       if (c == EOF)
         break;
 
-      if (c == 91) {
+      if (c == 91) { // CSI (Control Sequence Introducer)
         c = fgetc(input);
         if (c == EOF)
           break;
 
-        if (c == 51) {
+        if (c == 51) { // Delete key sequence start
           c = fgetc(input);
           if (c == EOF)
             break;
@@ -832,7 +832,11 @@ int main(int argc, char *argv[]) {
         } else if (c == 70) { // End key
           cursor_pos = cmdline_size;
           redraw(prompt, cmdline, cursor_pos, cmdline_size);
+        } else {
+          printf("Unhandled escape sequence: %d\n", c);
         }
+      } else {
+        printf("Unhandled escape sequence: %d\n", c);
       }
     } else if (c == 12) { // Ctrl+L, clear screen
       if (interactive) {
@@ -888,7 +892,7 @@ int main(int argc, char *argv[]) {
     } else if (c == 0x17) { // Ctrl+W, delete word before cursor
       delete_word(cmdline, &cursor_pos, &cmdline_size);
       redraw(prompt, cmdline, cursor_pos, cmdline_size);
-    } else if (c == 127) { // Backspace
+    } else if (c == 127 || c == 8) { // Backspace
       delete_char(cmdline, &cursor_pos, &cmdline_size);
       redraw(prompt, cmdline, cursor_pos, cmdline_size);
     } else if (c == 21) { // Ctrl+U, clear line
@@ -927,7 +931,7 @@ int main(int argc, char *argv[]) {
         redraw(prompt, cmdline, cursor_pos, cmdline_size);
       }
     } else {
-      // Unhandled character, ignore it
+      printf("Unhandled character: %d\n", c);
     }
   }
 
