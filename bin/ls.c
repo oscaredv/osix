@@ -184,7 +184,9 @@ void stat_entries(struct dirinfo *entries[], int entries_count, const char *dir_
 }
 
 void print_entries(struct dirinfo *entries[], int entries_count, int max_name_len) {
+  max_name_len += 2; // Add padding for spacing between columns
   int columns = COLS / (max_name_len + (show_inodes ? 4 : 0));
+
   int col = 0;
   for (int i = 0; i < entries_count; i++) {
     if (long_format) {
@@ -213,7 +215,6 @@ void print_entries(struct dirinfo *entries[], int entries_count, int max_name_le
       if (single_col) {
         printf("\n");
       } else {
-        printf("  ");
         for (int s = 0; s < (max_name_len - entries[i]->name_len); s++) {
           printf(" ");
         }
